@@ -1,0 +1,39 @@
+{
+  "tabs": [
+    {
+      "id": 1774193849053,
+      "name": "f",
+      "initialDebt": 4000,
+      "carryOver": 0,
+      "isCarryOverLocked": false,
+      "extraDebt1": 0,
+      "extraDebt2": 0,
+      "extraDebt3": 0,
+      "extraDebt4": 0,
+      "extraDebt5": 0,
+      "extraDebt6": 0,
+      "payments": [
+        {
+          "pid": 1774193864449,
+          "amount": 3000,
+          "sysTs": "22 mar 26, 22:37:44",
+          "sysLabel": "nhập tay",
+          "userNote": "",
+          "isMatched": false
+        }
+      ],
+      "isPinned": false,
+      "isNameLocked": true,
+      "isDebtLocked": true,
+      "isExtra1Locked": false,
+      "isExtra2Locked": false,
+      "isExtra3Locked": false,
+      "isExtra4Locked": false,
+      "isExtra5Locked": false,
+      "isExtra6Locked": false,
+      "code": "34"
+    }
+  ],
+  "activeTabId": 1774193849053,
+  "selectedMiniTabId": 1774193849053
+}

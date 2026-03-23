@@ -1,0 +1,193 @@
+{
+  "tabs": [
+    {
+      "id": 1774197281049,
+      "name": "vfwr",
+      "initialDebt": 24242000,
+      "carryOver": 0,
+      "isCarryOverLocked": false,
+      "extraDebt1": 0,
+      "extraDebt2": 0,
+      "extraDebt3": 0,
+      "extraDebt4": 0,
+      "extraDebt5": 0,
+      "extraDebt6": 0,
+      "payments": [
+        {
+          "pid": 1774250583990,
+          "amount": 332887,
+          "sysTs": "23 mar 26, 14:23:03",
+          "sysLabel": "tự khớp hoá đơn (hỗn hợp)",
+          "userNote": "",
+          "isMatched": false
+        },
+        {
+          "pid": 1774251931189,
+          "amount": 336000,
+          "sysTs": "23 mar 26, 14:45:31",
+          "sysLabel": "tự động",
+          "userNote": "",
+          "isMatched": false
+        },
+        {
+          "pid": 1774252067501,
+          "amount": 336000,
+          "sysTs": "23 mar 26, 14:47:47",
+          "sysLabel": "tự động",
+          "userNote": "",
+          "isMatched": false
+        }
+      ],
+      "isPinned": false,
+      "isNameLocked": true,
+      "isDebtLocked": true,
+      "isExtra1Locked": false,
+      "isExtra2Locked": false,
+      "isExtra3Locked": false,
+      "isExtra4Locked": false,
+      "isExtra5Locked": false,
+      "isExtra6Locked": false,
+      "code": "f"
+    },
+    {
+      "id": 1774197258450,
+      "name": "31",
+      "initialDebt": 14314000,
+      "carryOver": 0,
+      "isCarryOverLocked": false,
+      "extraDebt1": 0,
+      "extraDebt2": 0,
+      "extraDebt3": 0,
+      "extraDebt4": 0,
+      "extraDebt5": 0,
+      "extraDebt6": 0,
+      "payments": [
+        {
+          "pid": 1774198464150,
+          "amount": 34000,
+          "sysTs": "22 mar 26, 23:54:24",
+          "sysLabel": "nhập tay",
+          "userNote": "",
+          "isMatched": false
+        },
+        {
+          "pid": 1774198465743,
+          "amount": 4151000,
+          "sysTs": "22 mar 26, 23:54:25",
+          "sysLabel": "nhập tay",
+          "userNote": "",
+          "isMatched": false
+        },
+        {
+          "pid": 1774198467191,
+          "amount": 513000,
+          "sysTs": "22 mar 26, 23:54:27",
+          "sysLabel": "nhập tay",
+          "userNote": "",
+          "isMatched": false
+        },
+        {
+          "pid": 1774250867595,
+          "amount": 336000,
+          "sysTs": "23 mar 26, 14:27:47",
+          "sysLabel": "tự khớp hoá đơn (hỗn hợp)",
+          "userNote": "",
+          "isMatched": false
+        }
+      ],
+      "isPinned": false,
+      "isNameLocked": true,
+      "isDebtLocked": true,
+      "isExtra1Locked": false,
+      "isExtra2Locked": false,
+      "isExtra3Locked": false,
+      "isExtra4Locked": false,
+      "isExtra5Locked": false,
+      "isExtra6Locked": false,
+      "code": "14"
+    },
+    {
+      "id": 1774197275733,
+      "name": "24ds",
+      "initialDebt": 24000,
+      "carryOver": 0,
+      "isCarryOverLocked": false,
+      "extraDebt1": 0,
+      "extraDebt2": 0,
+      "extraDebt3": 0,
+      "extraDebt4": 0,
+      "extraDebt5": 0,
+      "extraDebt6": 0,
+      "payments": [],
+      "isPinned": false,
+      "isNameLocked": true,
+      "isDebtLocked": true,
+      "isExtra1Locked": false,
+      "isExtra2Locked": false,
+      "isExtra3Locked": false,
+      "isExtra4Locked": false,
+      "isExtra5Locked": false,
+      "isExtra6Locked": false,
+      "code": "24"
+    },
+    {
+      "id": 1774197130884,
+      "name": "s",
+      "initialDebt": 2000,
+      "carryOver": 0,
+      "isCarryOverLocked": false,
+      "extraDebt1": 0,
+      "extraDebt2": 0,
+      "extraDebt3": 0,
+      "extraDebt4": 0,
+      "extraDebt5": 0,
+      "extraDebt6": 0,
+      "payments": [
+        {
+          "pid": 1774251529052,
+          "amount": 334000,
+          "sysTs": "23 mar 26, 14:38:49",
+          "sysLabel": "tự động - thanh toán hỗn hợp",
+          "userNote": "",
+          "isMatched": false
+        }
+      ],
+      "isPinned": false,
+      "isNameLocked": true,
+      "isDebtLocked": true,
+      "isExtra1Locked": false,
+      "isExtra2Locked": false,
+      "isExtra3Locked": false,
+      "isExtra4Locked": false,
+      "isExtra5Locked": false,
+      "isExtra6Locked": false,
+      "code": "2"
+    },
+    {
+      "id": 1774197265099,
+      "name": "rve",
+      "initialDebt": 2000,
+      "carryOver": -2442000,
+      "isCarryOverLocked": true,
+      "extraDebt1": 0,
+      "extraDebt2": 0,
+      "extraDebt3": 0,
+      "extraDebt4": 0,
+      "extraDebt5": 0,
+      "extraDebt6": 0,
+      "payments": [],
+      "isPinned": false,
+      "isNameLocked": true,
+      "isDebtLocked": true,
+      "isExtra1Locked": false,
+      "isExtra2Locked": false,
+      "isExtra3Locked": false,
+      "isExtra4Locked": false,
+      "isExtra5Locked": false,
+      "isExtra6Locked": false,
+      "code": "2"
+    }
+  ],
+  "activeTabId": 1774197281049,
+  "selectedMiniTabId": 1774197281049
+}

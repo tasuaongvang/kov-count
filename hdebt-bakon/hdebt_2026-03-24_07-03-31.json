@@ -1,0 +1,41 @@
+{
+  "tabs": [
+    {
+      "id": 1774268575026,
+      "name": "k",
+      "initialDebt": 8000,
+      "carryOver": 0,
+      "isCarryOverLocked": false,
+      "extraDebt1": 0,
+      "extraDebt2": 0,
+      "extraDebt3": 0,
+      "extraDebt4": 0,
+      "extraDebt5": 0,
+      "extraDebt6": 0,
+      "payments": [
+        {
+          "pid": 1774275670199,
+          "amount": 336000,
+          "sysTs": "23 mar 26, 21:21:10",
+          "sysLabel": "tự động",
+          "userNote": "",
+          "isMatched": false,
+          "dupWarning": false,
+          "invoiceCode": "HD095049"
+        }
+      ],
+      "isPinned": false,
+      "isNameLocked": true,
+      "isDebtLocked": true,
+      "isExtra1Locked": false,
+      "isExtra2Locked": false,
+      "isExtra3Locked": false,
+      "isExtra4Locked": false,
+      "isExtra5Locked": false,
+      "isExtra6Locked": false,
+      "code": ""
+    }
+  ],
+  "activeTabId": 1774268575026,
+  "selectedMiniTabId": 1774268575026
+}

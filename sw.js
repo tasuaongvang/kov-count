@@ -1,5 +1,6 @@
 /* ── SỔ QUỸ — Service Worker ── */
-const CACHE = 'cashbook-v1';
+// Cache key = ngày SW được install, tự invalidate khi cashbook.html thay đổi
+const CACHE = 'cashbook-' + new Date().toISOString().slice(0, 10);
 const PRECACHE = ['./cashbook.html', './manifest.json'];
 
 /* ── INSTALL: precache shell ── */

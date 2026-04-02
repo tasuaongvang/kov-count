@@ -382,6 +382,96 @@
         "note": "Payment",
         "amount": 289,
         "kvId": 100786795
+      },
+      {
+        "code": "TTHD096204",
+        "time": "16:48",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 82,
+        "kvId": 100787739
+      },
+      {
+        "code": "TTHD096205",
+        "time": "16:54",
+        "desc": "chị Loan",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 1275,
+        "kvId": 100788815
+      },
+      {
+        "code": "TTHD096206",
+        "time": "17:14",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 430,
+        "kvId": 100792407
+      },
+      {
+        "code": "TTHD096207",
+        "time": "17:16",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 100,
+        "kvId": 100792817
+      },
+      {
+        "code": "TTHD096208",
+        "time": "17:19",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 35,
+        "kvId": 100793463
+      },
+      {
+        "code": "TTHD096210",
+        "time": "17:23",
+        "desc": "chị Cương",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 169,
+        "kvId": 100794163
+      },
+      {
+        "code": "TTHD096211",
+        "time": "17:26",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 842,
+        "kvId": 100794795
+      },
+      {
+        "code": "TTHD096212",
+        "time": "17:27",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 533,
+        "kvId": 100794958
+      },
+      {
+        "code": "TTHD096215",
+        "time": "17:36",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 400,
+        "kvId": 100796660
+      },
+      {
+        "code": "TTHD096214",
+        "time": "17:36",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 415,
+        "kvId": 100796588
       }
     ]
   },

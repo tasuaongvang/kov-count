@@ -472,6 +472,15 @@
         "note": "Payment",
         "amount": 415,
         "kvId": 100796588
+      },
+      {
+        "code": "TTHD096218",
+        "time": "17:53",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 45,
+        "kvId": 100799526
       }
     ]
   },
@@ -480,7 +489,7 @@
       "amount": 0,
       "date": ""
     },
-    "kvBalance": 0,
+    "kvBalance": 66442,
     "chiItems": [],
     "thuItems": []
   },

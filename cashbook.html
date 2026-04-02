@@ -307,10 +307,12 @@ body{display:flex;flex-direction:column;align-items:center}
 .empty-hist{padding:32px;text-align:center;color:var(--text3);font-size:14px}
 
 /* ── LẦU ── */
-.lau-body{padding:14px 16px;border-top:1px solid var(--border)}
-.lau-row{display:flex;justify-content:space-between;font-size:13px;color:var(--text2);margin-bottom:4px}
-.lau-row span:last-child{font-weight:600;font-family:var(--mono);color:var(--text)}
-.lau-next{font-size:12px;color:var(--text3);margin-top:4px}
+.lau-breakdown{border-top:1px solid var(--border);padding:8px 14px;font-size:12px;font-family:var(--mono)}
+.lau-bk-row{display:flex;justify-content:space-between;padding:3px 0;color:var(--text2)}
+.lau-bk-row .bk-plus{color:var(--green)}
+.lau-bk-row .bk-minus{color:var(--red)}
+.lau-bk-row .bk-muted{color:var(--text3)}
+.lau-open-row{border-top:1px solid var(--border);padding:10px 14px;display:flex;justify-content:space-between;align-items:baseline}
 
 /* ── TAG ── */
 .tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;margin-left:5px;vertical-align:middle}
@@ -577,7 +579,7 @@ function _makeEmptyDay(key) {
     label: `${dow} ${p[2]}/${p[1]}`, key,
     bop: { open: 0, physicalCount: null, chiItems: [], thuItems: [] },
     ket: { open: 3500, physicalCount: null, chiItems: [], thuItems: [] },
-    lau: { lastCount: { amount: 0, date: '' }, kvBalance: 0, chiItems: [], thuItems: [] },
+    lau: { open: 0, kvBalance: 0, physicalCount: null },
     chotDone: false, nextDayBop: null,
   };
 }
@@ -827,19 +829,34 @@ function render() {
   function makeLauRec() {
     if (isLocked) { return ''; }
     const lau = d.lau;
-    const netFlow = lau.chiItems.reduce((s,v) => s+v.amount, 0) + lau.thuItems.reduce((s,v) => s+v.amount, 0);
-    const ketQua = lau.lastCount.amount + netFlow;
-    const diff = ketQua - lau.kvBalance;
-    if (Math.abs(diff) < 0.5) { return ''; }
-    const isDu = diff > 0;
-    const typeStr = isDu ? 'Thu Khớp Sổ' : 'Chi Khớp Sổ';
-    return `<div class="rec-banner">
-      <div class="rec-text">
-        <div class="rec-label">Lầu ${isDu ? 'dư' : 'thiếu'} so KiotViet · cần tạo phiếu</div>
-        <div class="rec-val">${typeStr}: ${fmt(Math.abs(diff))}</div>
-      </div>
-      <button class="rec-btn" onclick="createLauKhopSo(${isDu})">Tạo phiếu ↗</button>
-    </div>`;
+    const computed = calcLauEndOfDay(d);
+    const kvBal = lau.kvBalance;
+    if (kvBal === 0 && lau.open === 0) { return ''; }
+    // physical count mismatch (weekly) → needs khớp sổ
+    if (lau.physicalCount != null) {
+      const physDiff = lau.physicalCount - kvBal;
+      if (Math.abs(physDiff) >= 0.5) {
+        const isDu = physDiff > 0;
+        const typeStr = isDu ? 'Thu Khớp Sổ' : 'Chi Khớp Sổ';
+        return `<div class="rec-banner">
+          <div class="rec-text">
+            <div class="rec-label">Đếm thực tế ${isDu ? 'dư' : 'thiếu'} so KiotViet</div>
+            <div class="rec-val">${typeStr}: ${fmt(Math.abs(physDiff))}</div>
+          </div>
+          <button class="rec-btn" onclick="createLauKhopSo(${isDu})">Tạo phiếu ↗</button>
+        </div>`;
+      }
+    }
+    // computed vs KV mismatch → hint to check bóp/két
+    const diff = computed - kvBal;
+    if (Math.abs(diff) >= 0.5) {
+      return `<div class="rec-banner">
+        <div class="rec-text">
+          <div class="rec-label">Tính ${diff > 0 ? '>' : '<'} KV ${fmt(Math.abs(diff))} — kiểm lại bóp/két</div>
+        </div>
+      </div>`;
+    }
+    return '';
   }
   const lauRec = makeLauRec();
 
@@ -1031,70 +1048,108 @@ function renderVoucherList(listId, items, isOut) {
   ).join('')}</div>`;
 }
 
+function calcLauEndOfDay(d) {
+  const bopCalc = calcSection(d.bop);
+  const ketCalc = calcSection(d.ket);
+  const bopEnd = d.bop.physicalCount != null ? d.bop.physicalCount : bopCalc.close;
+  const ketEnd = d.ket.physicalCount != null ? d.ket.physicalCount : ketCalc.close;
+  return d.lau.open - d.bop.open + bopEnd + (ketEnd - d.ket.open);
+}
+
 function calcLauMatch(d) {
-  const lau = d.lau;
-  const netFlow = lau.chiItems.reduce((s,v) => s+v.amount, 0) + lau.thuItems.reduce((s,v) => s+v.amount, 0);
-  const ketQua = lau.lastCount.amount + netFlow;
-  return Math.abs(ketQua - lau.kvBalance) < 0.5;
+  if (d.lau.kvBalance === 0 && d.lau.open === 0) { return true; }
+  const computed = calcLauEndOfDay(d);
+  return Math.abs(computed - d.lau.kvBalance) < 0.5;
 }
 
 function calcChotReady(d, bopCalc, ketCalc) {
   if (d.chotDone) { return { ok: false, reason: '' }; }
   const bopOk = d.bop.physicalCount != null && Math.abs(d.bop.physicalCount - bopCalc.close) < 0.5;
   const ketOk = d.ket.physicalCount != null && Math.abs(d.ket.physicalCount - ketCalc.close) < 0.5;
-  const lauOk = calcLauMatch(d);
+  const lauOk = d.lau.kvBalance > 0 ? calcLauMatch(d) : true;
   if (!bopOk) { return { ok: false, reason: d.bop.physicalCount == null ? 'Chưa đếm bóp' : 'Bóp chưa khớp sổ' }; }
   if (!ketOk) { return { ok: false, reason: d.ket.physicalCount == null ? 'Chưa đếm két' : 'Két chưa khớp sổ' }; }
-  if (!lauOk) { return { ok: false, reason: 'Lầu chưa khớp KiotViet' }; }
+  if (!lauOk) { return { ok: false, reason: 'Lầu: tính ≠ tồn quỹ KV' }; }
   return { ok: true, reason: '' };
 }
 
 function renderLau() {
   const d = dayData();
   const lau = d.lau;
-  const netFlow = lau.chiItems.reduce((s,v) => s+v.amount, 0) + lau.thuItems.reduce((s,v) => s+v.amount, 0);
-  const soLieuMay = lau.kvBalance;
-  const ketQua = lau.lastCount.amount + netFlow;
-  const matched = Math.abs(ketQua - soLieuMay) < 0.5;
-  const diff = ketQua - soLieuMay;
-  const diffCls = diff > 0 ? 'delta-pos' : diff < 0 ? 'delta-neg' : 'delta-zero';
-  const diffWord = diff > 0 ? '▲ dư' : diff < 0 ? '▼ thiếu' : '✓ khớp';
+  const bopCalc = calcSection(d.bop);
+  const ketCalc = calcSection(d.ket);
+  const bopEnd = d.bop.physicalCount != null ? d.bop.physicalCount : bopCalc.close;
+  const ketEnd = d.ket.physicalCount != null ? d.ket.physicalCount : ketCalc.close;
+  const computed = calcLauEndOfDay(d);
+  const kvBal = lau.kvBalance;
+  const hasKV = kvBal > 0 || lau.open > 0;
+  const diff = computed - kvBal;
+  const matched = !hasKV || Math.abs(diff) < 0.5;
+  const hasCounted = lau.physicalCount != null;
+  const physDiff = hasCounted ? lau.physicalCount - kvBal : 0;
+  const physMatched = !hasCounted || Math.abs(physDiff) < 0.5;
+
+  const bopMangLen = bopEnd;
+  const ketMangLen = ketEnd - d.ket.open;
+  const bopLayXuong = d.bop.open;
+
+  let statusHtml;
+  if (!hasKV) {
+    statusHtml = '<span style="font-size:12px;color:var(--text3)">chưa có dữ liệu</span>';
+  } else if (hasCounted && physMatched && matched) {
+    statusHtml = '<span style="font-size:12px;font-family:var(--mono);color:var(--green)">✓ khớp cả 3</span>';
+  } else if (matched) {
+    statusHtml = '<span style="font-size:12px;font-family:var(--mono);color:var(--green)">✓ khớp KV</span>';
+  } else {
+    statusHtml = `<span style="font-size:12px;font-family:var(--mono);color:var(--red)">✗ lệch ${fmt(Math.abs(diff))}</span>`;
+  }
+
+  const prevDay = dayIdx > 0 ? DAYS[dayIdx - 1] : null;
+  const prevLabel = prevDay ? prevDay.label.split(' ')[0] : '';
+  const openSub = prevDay ? `= cuối ngày ${prevLabel}` : '';
+
+  let bottomGrid;
+  if (hasCounted) {
+    bottomGrid = `<div class="inner-grid" style="grid-template-columns:1fr 1fr 1fr">
+        <div class="ig-cell"><div class="ig-label">Tính</div><div class="ig-val">${fmt(computed)}</div></div>
+        <div class="ig-cell"><div class="ig-label">Tồn quỹ KV</div><div class="ig-val b">${fmt(kvBal)}</div></div>
+        <div class="ig-cell"><div class="ig-label">Đếm thực tế</div><div class="ig-val${physMatched ? ' g' : ' r'}">${fmt(lau.physicalCount)}${physMatched ? ' ✓' : ''}</div></div>
+      </div>`;
+  } else {
+    bottomGrid = `<div class="inner-grid">
+        <div class="ig-cell"><div class="ig-label">Cuối ngày (tính)</div><div class="ig-val">${fmt(computed)}</div></div>
+        <div class="ig-cell"><div class="ig-label">Tồn quỹ KV</div><div class="ig-val b">${fmt(kvBal)}</div></div>
+      </div>`;
+  }
 
   return `
   <div class="acc-card">
     <div class="acc-header" onclick="toggleAcc('lau')">
       <div class="acc-left">
         <div class="acc-icon icon-lau">🏠</div>
-        <div>
-          <div class="acc-title">Lầu</div>
-          <div class="acc-subtitle">Kiểm kê ${lau.lastCount.date || '—'}</div>
-        </div>
+        <div style="font-size:15px;font-weight:600;letter-spacing:-0.01em">Lầu</div>
       </div>
       <div class="acc-right">
-        <div class="acc-val">
-          <div class="acc-amount">${fmt(ketQua)}</div>
-          <div class="acc-delta ${matched ? 'delta-zero' : diffCls}">${matched ? '' : diffWord + ' ' + fmt(Math.abs(diff))}</div>
-        </div>
+        ${statusHtml}
         <div class="chevron ${openSections.lau ? 'open' : ''}" id="chev-lau">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
       </div>
     </div>
     <div class="acc-body ${openSections.lau ? 'open' : ''}" id="body-lau">
-      <div class="inner-grid">
-        <div class="ig-cell">
-          <div class="ig-label">Tồn quỹ KV</div>
-          <div class="ig-val">${fmt(soLieuMay)}</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px">kiểm kê ${lau.lastCount.date || '—'}</div>
+      <div class="lau-open-row">
+        <div>
+          <div style="font-size:11px;color:var(--text3)">Đầu ngày</div>
+          ${openSub ? `<div style="font-size:10px;color:var(--text3);margin-top:1px">${openSub}</div>` : ''}
         </div>
-        <div class="ig-cell">
-          <div class="ig-label">Kết quả</div>
-          <div class="ig-val ${matched ? '' : diffCls}">${fmt(ketQua)}</div>
-          <div style="font-size:11px;margin-top:2px;color:${matched ? 'var(--green)' : 'var(--red)'}">${matched ? '✓ khớp' : '✗ chưa khớp'}</div>
-        </div>
+        <div style="font-size:15px;font-weight:600;font-family:var(--mono);letter-spacing:-0.03em">${fmt(lau.open)}</div>
       </div>
-      ${lau.chiItems.length ? renderListSection('lau_chi', 'Phiếu chi từ lầu', lau.chiItems, true) : ''}
-      ${lau.thuItems.length ? renderListSection('lau_thu', 'Phiếu thu vào lầu', lau.thuItems, false) : ''}
+      <div class="lau-breakdown">
+        <div class="lau-bk-row"><span class="bk-muted">− bóp lấy xuống</span><span class="bk-minus">−${fmt(bopLayXuong)}</span></div>
+        <div class="lau-bk-row"><span class="bk-muted">+ bóp mang lên</span><span class="bk-plus">+${fmt(bopMangLen)}</span></div>
+        <div class="lau-bk-row"><span class="bk-muted">+ két mang lên</span><span class="${ketMangLen >= 0 ? 'bk-plus' : 'bk-minus'}">${ketMangLen >= 0 ? '+' : '−'}${fmt(Math.abs(ketMangLen))}</span></div>
+      </div>
+      ${bottomGrid}
     </div>
   </div>`;
 }
@@ -1315,9 +1370,8 @@ function switchCountTab(tab) {
 function createLauKhopSo(isDu) {
   const d = dayData();
   const lau = d.lau;
-  const netFlow = lau.chiItems.reduce((s,v) => s+v.amount, 0) + lau.thuItems.reduce((s,v) => s+v.amount, 0);
-  const ketQua = lau.lastCount.amount + netFlow;
-  const diff = ketQua - lau.kvBalance;
+  if (lau.physicalCount == null) { return; }
+  const diff = lau.physicalCount - lau.kvBalance;
   const now = new Date();
   const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
   const voucher = {
@@ -1325,14 +1379,14 @@ function createLauKhopSo(isDu) {
     time,
     desc: isDu ? 'Thu Khớp Sổ (Lầu)' : 'Chi Khớp Sổ (Lầu)',
     cat: 'Khớp sổ',
-    note: 'Tạo tự động · Sổ Quỹ',
-    amount: isDu ? -Math.abs(diff) : Math.abs(diff),
+    note: 'Tạo tự động · Sổ Quỹ · kiểm đếm lầu',
+    amount: Math.abs(diff),
     isKhopSo: true,
     kvId: null, kvPending: true, kvErr: null,
   };
-  if (isDu) { lau.thuItems.push(voucher); }
-  else { lau.chiItems.push(voucher); }
-  lau.kvBalance = lau.lastCount.amount + lau.chiItems.reduce((s,v) => s+v.amount, 0) + lau.thuItems.reduce((s,v) => s+v.amount, 0);
+  // push into bóp thuItems (since it affects total fund on KV)
+  d.bop.thuItems.push(voucher);
+  lau.kvBalance = lau.physicalCount;
   render();
   kvSyncVoucher(voucher, isDu, Math.abs(diff));
 }
@@ -1400,10 +1454,6 @@ function deleteVoucher(sectionKey, listKey, vCode) {
   const idx = list.findIndex(v => v.code === vCode);
   if (idx < 0) { return; }
   const voucher = list.splice(idx, 1)[0];
-  if (sectionKey === 'lau') {
-    const lau = d.lau;
-    lau.kvBalance = lau.lastCount.amount + lau.chiItems.reduce((s,v) => s+v.amount, 0) + lau.thuItems.reduce((s,v) => s+v.amount, 0);
-  }
   render();
   if (voucher.kvId && _kvToken) {
     fetch(KV_CF_URL + '/' + voucher.kvId, {
@@ -1420,6 +1470,9 @@ function openChot() {
   const ketCalc = calcSection(d.ket);
   const bopDiff = bopCalc.close - d.bop.open;
   const ketDiff = ketCalc.close - d.ket.open;
+  const lauComputed = calcLauEndOfDay(d);
+  const lauKV = d.lau.kvBalance;
+  const lauMatched = lauKV > 0 && Math.abs(lauComputed - lauKV) < 0.5;
   const row = (key, val, badgeClass, badgeText) =>
     `<div class="chot-row"><span class="chot-key">${key}</span><div style="display:flex;align-items:center;gap:8px"><span class="chot-val">${val}</span>${badgeClass ? `<span class="chot-badge ${badgeClass}">${badgeText}</span>` : ''}</div></div>`;
 
@@ -1427,6 +1480,7 @@ function openChot() {
     ${row('Ngày', DAYS[dayIdx].label, '', '')}
     ${row('Bóp cuối ngày', fmtFull(bopCalc.close), bopDiff === 0 ? 'badge-ok' : bopDiff > 0 ? 'badge-ok' : 'badge-bad', bopDiff >= 0 ? `dư ${fmtFull(bopDiff)}` : `thiếu ${fmtFull(-bopDiff)}`)}
     ${row('Két cuối ngày', fmtFull(ketCalc.close), ketDiff === 0 ? 'badge-ok' : ketDiff > 0 ? 'badge-warn' : 'badge-bad', ketDiff >= 0 ? `dư ${fmtFull(ketDiff)}` : `thiếu ${fmtFull(-ketDiff)}`)}
+    ${row('Lầu cuối ngày', fmtFull(lauComputed), lauKV > 0 ? (lauMatched ? 'badge-ok' : 'badge-bad') : '', lauKV > 0 ? (lauMatched ? '✓ khớp KV' : '✗ lệch KV') : '')}
     ${row('Tổng phiếu', d.bop.chiItems.length + d.bop.thuItems.length + d.ket.chiItems.length + d.ket.thuItems.length + ' phiếu', '', '')}
   `;
   document.getElementById('chotModal').classList.add('open');
@@ -1438,10 +1492,16 @@ function closeModal(id) {
 
 async function doChot() {
   closeModal('chotModal');
-  DAYS[dayIdx].chotDone = true;
+  const d = DAYS[dayIdx];
+  d.chotDone = true;
+  // carry-over lầu: cuối ngày → next day đầu ngày
+  const lauEnd = calcLauEndOfDay(d);
+  const nextIdx = dayIdx + 1;
+  if (nextIdx < DAYS.length) {
+    DAYS[nextIdx].lau.open = d.lau.kvBalance > 0 ? d.lau.kvBalance : lauEnd;
+  }
   render();
   const pat = localStorage.getItem(CB_PAT_KEY);
-  const d = DAYS[dayIdx];
   let savedToGH = false;
   if (pat) {
     try { await saveDayToGH(pat, d); savedToGH = true; } catch(e) { console.warn('Save GH failed:', e.message); }

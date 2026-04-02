@@ -1284,6 +1284,7 @@ function changeDay(dir) {
       .then(() => { if (!dayData().chotDone) { markDirty(); } render(); })
       .catch(() => render());
   }
+}
 
 /* ── SYNC ── */
 async function doSync() {

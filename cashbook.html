@@ -82,20 +82,21 @@ body{display:flex;flex-direction:column;align-items:center}
 .nav-btn{width:32px;height:32px;border:none;background:none;color:var(--text2);font-size:20px;cursor:pointer;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;transition:background .15s}
 .nav-btn:active{background:var(--surface2)}
 .count-wrap{position:relative;display:flex;align-items:center}
-/* ── COUNT OVERLAY (full-width timeline) ── */
-.count-overlay{position:absolute;inset:0;background:var(--surface);z-index:20;display:flex;align-items:center;padding:0 12px;gap:10px;transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1);border-bottom:1px solid var(--border)}
+/* ── COUNT OVERLAY (full-width, POLT-bright theme) ── */
+.count-overlay{position:absolute;inset:0;background:#1565c0;z-index:20;display:flex;align-items:center;padding:0 8px;gap:6px;transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
 .count-overlay.open{transform:translateX(0)}
-.ct-close{width:28px;height:28px;border:none;background:none;color:var(--text2);font-size:14px;cursor:pointer;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center}
-.ct-close:hover{background:var(--surface2)}
-.ct-timeline{display:flex;align-items:center;flex:1;min-width:0}
-.ct-line{flex:1;height:1px;background:var(--border2);min-width:8px}
-.ct-node{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:2px 6px;flex-shrink:0}
-.ct-node:hover .ct-dot{background:var(--green-mid);transform:scale(1.4)}
-.ct-node:hover .ct-lbl{color:var(--text)}
-.ct-dot{width:8px;height:8px;border-radius:50%;background:var(--text3);transition:all .15s}
-.ct-dot-tmr{background:var(--amber);border:2px solid var(--amber-bg)}
-.ct-node:hover .ct-dot-tmr{background:var(--amber);border-color:var(--amber)}
-.ct-lbl{font-size:10px;color:var(--text3);white-space:nowrap;font-weight:500}
+.ct-close{width:28px;height:28px;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:13px;cursor:pointer;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.ct-close:active{background:rgba(255,255,255,.3)}
+.ct-btns{display:flex;align-items:center;gap:5px;flex:1;overflow-x:auto}
+.ct-btn{border:none;border-radius:20px;padding:7px 14px;font-size:12px;font-family:var(--sans);font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .12s}
+.ct-btn-ket{background:#e3f2fd;color:#0d47a1}
+.ct-btn-ket:active{background:#bbdefb}
+.ct-btn-bop{background:#e8f5e9;color:#1b5e20}
+.ct-btn-bop:active{background:#c8e6c9}
+.ct-btn-boptr{background:#fff8e1;color:#e65100}
+.ct-btn-boptr:active{background:#ffecb3}
+.ct-btn-lau{background:#fce4ec;color:#880e4f}
+.ct-btn-lau:active{background:#f8bbd0}
 .sync-btn{display:flex;align-items:center;gap:5px;border:1px solid var(--border2);border-radius:20px;padding:5px 11px;font-size:13px;font-family:var(--sans);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .15s;flex-shrink:0}
 .sync-btn:active{background:var(--bg2)}
 .btn-chot-top{background:var(--green-mid);color:#fff;border-color:transparent}
@@ -260,22 +261,24 @@ body{display:flex;flex-direction:column;align-items:center}
 .modal-close{position:absolute;top:16px;right:16px;border:none;background:var(--surface2);border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center}
 .modal-close:active{background:var(--bg2)}
 
-/* ── COUNT MODAL ── */
+/* ── COUNT MODAL (fullscreen) ── */
+.cnt-modal-wrap{position:fixed;inset:0;background:var(--surface);z-index:500;opacity:0;pointer-events:none;transition:opacity .2s;display:flex;flex-direction:column}
+.cnt-modal-wrap.open{opacity:1;pointer-events:all}
+.cnt-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.cnt-header-title{font-size:16px;font-weight:600;letter-spacing:-.02em}
+.cnt-header-close{border:none;background:var(--surface2);border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center}
+.cnt-header-close:active{background:var(--bg2)}
+.cnt-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0;padding:0 12px}
+.cnt-tab{flex:1;padding:10px 4px;border:none;border-bottom:2px solid transparent;background:none;color:var(--text3);font-size:12px;font-family:var(--sans);font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;text-align:center}
+.cnt-tab.active{color:var(--green);border-bottom-color:var(--green-mid)}
+.cnt-body{flex:1;overflow-y:auto;padding:14px 16px}
+.cnt-footer{padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--border);flex-shrink:0}
 .voice-display{background:var(--bg);border-radius:var(--r-md);padding:16px;font-family:var(--mono);font-size:13px;min-height:80px;color:var(--text2);border:1px solid var(--border);line-height:1.7}
 .voice-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding:12px 14px;background:var(--green-bg);border-radius:var(--r-sm)}
 .vt-label{font-size:13px;color:var(--green);font-weight:500}
 .vt-val{font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text)}
-.count-input{width:100%;border:1px solid var(--border2);border-radius:var(--r-sm);padding:11px 14px;font-size:15px;font-family:var(--sans);background:var(--surface2);color:var(--text);margin-top:12px;outline:none}
-.count-input:focus{border-color:var(--green-mid)}
-.count-hint{font-size:12px;color:var(--text3);margin-top:8px}
-.quick-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-.chip{border:1px solid var(--border2);border-radius:20px;padding:5px 11px;font-size:12px;font-family:var(--mono);cursor:pointer;color:var(--text2);background:var(--surface2)}
-.chip:active{background:var(--bg2)}
-.btn-calc{width:100%;margin-top:14px;padding:12px;border-radius:var(--r-md);border:none;background:var(--green-mid);color:#fff;font-size:15px;font-family:var(--sans);font-weight:600;cursor:pointer}
-/* count tabs */
-.cnt-tabs{display:flex;gap:6px;margin-bottom:14px}
-.cnt-tab{flex:1;padding:8px 4px;border:1px solid var(--border2);border-radius:var(--r-sm);background:var(--surface2);color:var(--text2);font-size:12px;font-family:var(--sans);font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap}
-.cnt-tab.active{background:var(--green-mid);color:#fff;border-color:transparent}
+.btn-calc{width:100%;padding:13px;border-radius:var(--r-md);border:none;background:var(--green-mid);color:#fff;font-size:15px;font-family:var(--sans);font-weight:600;cursor:pointer}
+.btn-calc:active{background:var(--green)}
 /* calc rows */
 .calc-row{display:grid;grid-template-columns:52px 16px 72px 1fr;align-items:center;gap:6px;padding:7px 2px;border-bottom:1px solid var(--border)}
 .calc-row:last-child{border-bottom:none}
@@ -392,31 +395,14 @@ body{display:flex;flex-direction:column;align-items:center}
         </button>
       </div>
 
-      <!-- TIMELINE OVERLAY -->
+      <!-- COUNT OVERLAY -->
       <div class="count-overlay" id="countOpts">
         <button class="ct-close" onclick="toggleCountOpts()">&#10005;</button>
-        <div class="ct-timeline">
-          <div class="ct-line"></div>
-          <button class="ct-node" onclick="openCount('ket')">
-            <div class="ct-dot"></div>
-            <span class="ct-lbl">Két</span>
-          </button>
-          <div class="ct-line"></div>
-          <button class="ct-node" onclick="openCount('bop')">
-            <div class="ct-dot"></div>
-            <span class="ct-lbl">Bóp hôm nay</span>
-          </button>
-          <div class="ct-line"></div>
-          <button class="ct-node" onclick="openCount('lau')">
-            <div class="ct-dot"></div>
-            <span class="ct-lbl">Lầu</span>
-          </button>
-          <div class="ct-line"></div>
-          <button class="ct-node" onclick="openCount('boptr')">
-            <div class="ct-dot ct-dot-tmr"></div>
-            <span class="ct-lbl">Bóp ngày mai</span>
-          </button>
-          <div class="ct-line"></div>
+        <div class="ct-btns">
+          <button class="ct-btn ct-btn-ket" onclick="openCount('ket')">Két</button>
+          <button class="ct-btn ct-btn-bop" onclick="openCount('bop')">Bóp hôm nay</button>
+          <button class="ct-btn ct-btn-boptr" onclick="openCount('boptr')">Bóp ngày mai</button>
+          <button class="ct-btn ct-btn-lau" onclick="openCount('lau')">Lầu</button>
         </div>
       </div>
 
@@ -444,51 +430,60 @@ body{display:flex;flex-direction:column;align-items:center}
 
 </div>
 
-<!-- COUNT MODAL -->
-<div class="modal-wrap" id="countModal">
-  <div class="modal" style="position:relative">
-    <div class="modal-handle"></div>
-    <button class="modal-close" onclick="closeModal('countModal')">&#10005;</button>
-    <div class="modal-title" id="countModalTitle">Đếm tiền mặt</div>
+<!-- COUNT MODAL (fullscreen) -->
+<div class="cnt-modal-wrap" id="countModal">
+  <div class="cnt-header">
+    <div class="cnt-header-title" id="countModalTitle">Đếm tiền mặt</div>
+    <button class="cnt-header-close" onclick="closeCountModal()">&#10005;</button>
+  </div>
+  <div class="cnt-tabs">
+    <button class="cnt-tab active" id="ctab-calc" onclick="switchCountTab('calc')">Đếm tay</button>
+    <button class="cnt-tab" id="ctab-voice" onclick="switchCountTab('voice')">Giọng nói</button>
+    <button class="cnt-tab" id="ctab-cam" onclick="switchCountTab('cam')">Chụp hình</button>
+    <button class="cnt-tab" id="ctab-final" onclick="switchCountTab('final')">Nhập tổng</button>
+  </div>
 
-    <div class="cnt-tabs">
-      <button class="cnt-tab active" id="ctab-calc" onclick="switchCountTab('calc')">✏️ Nhập tay</button>
-      <button class="cnt-tab" id="ctab-voice" onclick="switchCountTab('voice')">🎙 Giọng</button>
-      <button class="cnt-tab" id="ctab-cam" onclick="switchCountTab('cam')">📷 Chụp hình</button>
-    </div>
-
-    <!-- ── TAB: NHẬP TAY ── -->
-    <div id="cpane-calc">
-      <div class="calc-rows-wrap" id="calcRowsWrap"></div>
+  <!-- ── TAB: ĐẾM TAY ── -->
+  <div id="cpane-calc" style="display:flex;flex-direction:column;flex:1;min-height:0">
+    <div class="cnt-body" style="flex:1;overflow-y:auto">
+      <div id="calcRowsWrap"></div>
       <div style="text-align:right;margin-top:6px">
         <button onclick="resetCalcRows()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;font-family:var(--sans)">↺ Đặt lại về 0</button>
       </div>
-      <div class="voice-total" style="margin-top:10px">
+    </div>
+    <div class="cnt-footer">
+      <div class="voice-total" style="margin-top:0;margin-bottom:10px">
         <span class="vt-label">Tổng</span>
         <span class="vt-val" id="calcTotalVal">0 ₫</span>
       </div>
       <button class="btn-calc" onclick="applyCount()">Ghi lại</button>
     </div>
+  </div>
 
-    <!-- ── TAB: GIỌNG NÓI ── -->
-    <div id="cpane-voice" style="display:none">
+  <!-- ── TAB: GIỌNG NÓI ── -->
+  <div id="cpane-voice" style="display:none;flex-direction:column;flex:1;min-height:0">
+    <div class="cnt-body" style="flex:1;overflow-y:auto">
       <div class="voice-display" id="voiceTranscript" style="min-height:52px">Nhấn giữ 🎙 và đọc: <span style="color:var(--text3)">"500 tám tờ, 200 mười lăm tờ"</span></div>
-      <div style="text-align:center;margin:16px 0 8px">
+      <div style="text-align:center;margin:20px 0 12px">
         <button id="micBtn" class="mic-btn" onpointerdown="startVoice()" onpointerup="stopVoice()" onpointercancel="stopVoice()" ontouchstart="startVoice();event.preventDefault()" ontouchend="stopVoice();event.preventDefault()">🎙</button>
         <div style="font-size:11px;color:var(--text3);margin-top:6px">Nhấn giữ để nói</div>
       </div>
       <div class="voice-display" id="voiceParsed" style="min-height:52px"></div>
-      <div class="voice-total" style="margin-top:10px">
+    </div>
+    <div class="cnt-footer">
+      <div class="voice-total" style="margin-top:0;margin-bottom:10px">
         <span class="vt-label">Tổng</span>
         <span class="vt-val" id="voiceTotalVal">0 ₫</span>
       </div>
       <button class="btn-calc" onclick="applyCountFromVoice()">Ghi lại</button>
     </div>
+  </div>
 
-    <!-- ── TAB: CHỤP HÌNH ── -->
-    <div id="cpane-cam" style="display:none">
+  <!-- ── TAB: CHỤP HÌNH ── -->
+  <div id="cpane-cam" style="display:none;flex-direction:column;flex:1;min-height:0">
+    <div class="cnt-body" style="flex:1;overflow-y:auto">
       <div id="camApiWarn" style="display:none;font-size:12px;color:var(--amber);background:var(--amber-bg);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:10px;line-height:1.5">
-        Cần Anthropic API key để nhận diện ảnh.
+        Cần Gemini API key để nhận diện ảnh.
         <button onclick="openCamSetup()" style="background:none;border:none;color:var(--amber);font-weight:600;cursor:pointer;font-size:12px;font-family:var(--sans)">Nhập key ↗</button>
       </div>
       <input type="file" id="camFileInput" accept="image/*" capture="environment" style="display:none" onchange="processImage(this.files[0])">
@@ -496,12 +491,32 @@ body{display:flex;flex-direction:column;align-items:center}
         <img id="camImg" class="cam-preview-img">
       </div>
       <div class="voice-display" id="camResult" style="min-height:52px">Chụp bảng ghi mệnh giá × số tờ, AI sẽ tự nhận diện.</div>
-      <div class="voice-total" id="camTotalWrap" style="display:none;margin-top:10px">
+    </div>
+    <div class="cnt-footer">
+      <div class="voice-total" id="camTotalWrap" style="display:none;margin-top:0;margin-bottom:10px">
         <span class="vt-label">Tổng</span>
         <span class="vt-val" id="camTotalVal">0 ₫</span>
       </div>
-      <button class="btn-calc" id="camShootBtn" onclick="triggerCamera()" style="margin-top:10px">📷 Chụp / Chọn ảnh</button>
-      <button class="btn-calc" id="camApplyBtn" style="display:none" onclick="applyCountFromCam()">Ghi lại</button>
+      <button class="btn-calc" id="camShootBtn" onclick="triggerCamera()">📷 Chụp / Chọn ảnh</button>
+      <button class="btn-calc" id="camApplyBtn" style="display:none;margin-top:8px" onclick="applyCountFromCam()">Ghi lại</button>
+    </div>
+  </div>
+
+  <!-- ── TAB: NHẬP TỔNG ── -->
+  <div id="cpane-final" style="display:none;flex-direction:column;flex:1;min-height:0">
+    <div class="cnt-body" style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:16px">
+      <div style="font-size:13px;color:var(--text3);text-align:center">Nhập số tổng (đơn vị: nghìn đồng)</div>
+      <input id="finalCountInput" type="number" inputmode="numeric" min="0" placeholder="vd: 19350"
+        style="width:100%;max-width:260px;border:1px solid var(--border2);border-radius:var(--r-md);padding:14px 16px;font-size:22px;font-family:var(--mono);text-align:center;background:var(--surface2);color:var(--text);outline:none"
+        onfocus="this.style.borderColor='var(--green-mid)'" onblur="this.style.borderColor='var(--border2)'"
+        oninput="updateFinalTotal()">
+      <div class="voice-total" id="finalTotalWrap" style="width:100%;max-width:260px;margin-top:0">
+        <span class="vt-label">Tổng</span>
+        <span class="vt-val" id="finalTotalVal">0 ₫</span>
+      </div>
+    </div>
+    <div class="cnt-footer">
+      <button class="btn-calc" onclick="applyCountFinal()">Ghi lại</button>
     </div>
   </div>
 </div>
@@ -1303,7 +1318,7 @@ let _voiceTotal = 0;
 let _camTotal = 0;
 let _camRows = [];
 let _recognition = null;
-const CB_ANTH_KEY = 'cb_anth_key';
+const CB_GEMINI_KEY = 'cb_gemini_key';
 const DENOMS = [500,200,100,50,20,10,5,2,1];
 
 function openCount(type) {
@@ -1313,15 +1328,19 @@ function openCount(type) {
   const titles = { lau: '🏠 Lầu · kho tổng', bop: '💵 Bóp · tiền mặt', ket: '🔒 Két · tiền lẻ' };
   const titleEl = document.getElementById('countModalTitle');
   if (titleEl) { titleEl.textContent = 'Đếm tiền — ' + (titles[type] || ''); }
-  // init calc rows — tất cả 9 mệnh giá, mặc định 0
   _calcRows = DENOMS.map(den => ({ den, cnt: 0 }));
   _voiceTotal = 0; _camTotal = 0; _camRows = [];
   renderCalcRows();
   updateCalcTotal();
   _resetVoicePane();
   _resetCamPane();
+  _resetFinalPane();
   switchCountTab('calc');
   document.getElementById('countModal').classList.add('open');
+}
+
+function closeCountModal() {
+  document.getElementById('countModal').classList.remove('open');
 }
 
 function _resetVoicePane() {
@@ -1350,13 +1369,17 @@ function _resetCamPane() {
 
 function switchCountTab(tab) {
   _countTab = tab;
-  ['calc','voice','cam'].forEach(t => {
+  ['calc','voice','cam','final'].forEach(t => {
     const pane = document.getElementById('cpane-' + t);
     const btn = document.getElementById('ctab-' + t);
-    if (pane) { pane.style.display = t === tab ? '' : 'none'; }
+    if (pane) { pane.style.display = t === tab ? 'flex' : 'none'; }
     if (btn) { btn.className = 'cnt-tab' + (t === tab ? ' active' : ''); }
   });
   if (tab === 'cam') { checkCamApiKey(); }
+  if (tab === 'final') {
+    const inp = document.getElementById('finalCountInput');
+    if (inp) { setTimeout(() => inp.focus(), 100); }
+  }
 }
 
 function createLauKhopSo(isDu) {
@@ -1629,7 +1652,7 @@ function applyCount() {
   if (total > 0 && currentCountType) {
     DAYS[dayIdx][currentCountType].physicalCount = total;
   }
-  closeModal('countModal');
+  closeCountModal();
   render();
 }
 
@@ -1702,21 +1725,21 @@ function applyCountFromVoice() {
   if (_voiceTotal > 0 && currentCountType) {
     DAYS[dayIdx][currentCountType].physicalCount = _voiceTotal;
   }
-  closeModal('countModal');
+  closeCountModal();
   render();
 }
 
-/* ── CAMERA + AI ── */
+/* ── CAMERA + AI (Gemini Flash) ── */
 function checkCamApiKey() {
   const warn = document.getElementById('camApiWarn');
-  if (warn) { warn.style.display = localStorage.getItem(CB_ANTH_KEY) ? 'none' : 'block'; }
+  if (warn) { warn.style.display = localStorage.getItem(CB_GEMINI_KEY) ? 'none' : 'block'; }
 }
 
 function openCamSetup() {
-  const cur = localStorage.getItem(CB_ANTH_KEY) || '';
-  const key = prompt('Anthropic API Key (sk-ant-...):', cur);
-  if (key && key.trim().startsWith('sk-')) {
-    localStorage.setItem(CB_ANTH_KEY, key.trim());
+  const cur = localStorage.getItem(CB_GEMINI_KEY) || '';
+  const key = prompt('Gemini API Key:', cur);
+  if (key !== null && key.trim()) {
+    localStorage.setItem(CB_GEMINI_KEY, key.trim());
     checkCamApiKey();
   }
 }
@@ -1727,7 +1750,7 @@ function triggerCamera() {
 
 async function processImage(file) {
   if (!file) { return; }
-  const key = localStorage.getItem(CB_ANTH_KEY);
+  const key = localStorage.getItem(CB_GEMINI_KEY);
   const result = document.getElementById('camResult');
   const totalWrap = document.getElementById('camTotalWrap');
   const applyBtn = document.getElementById('camApplyBtn');
@@ -1754,22 +1777,15 @@ async function processImage(file) {
     try {
       const b64 = e.target.result.split(',')[1];
       const mime = file.type || 'image/jpeg';
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(key), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 256,
-          system: 'Phân tích ảnh. Trích xuất các cặp mệnh giá tiền × số tờ. Chỉ trả về JSON array thuần (không markdown). Ví dụ: [{"den":500,"cnt":8},{"den":200,"cnt":15}]. Mệnh giá tính bằng nghìn đồng.',
-          messages: [{ role: 'user', content: [
-            { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } },
-            { type: 'text', text: 'Nhận diện mệnh giá và số tờ.' }
+          contents: [{ parts: [
+            { inlineData: { mimeType: mime, data: b64 } },
+            { text: 'Phân tích ảnh. Trích xuất các cặp mệnh giá tiền × số tờ. Chỉ trả về JSON array thuần (không markdown). Ví dụ: [{"den":500,"cnt":8},{"den":200,"cnt":15}]. Mệnh giá tính bằng nghìn đồng.' }
           ]}],
+          generationConfig: { temperature: 0, maxOutputTokens: 256 }
         }),
       });
 
@@ -1779,7 +1795,7 @@ async function processImage(file) {
       }
 
       const data = await res.json();
-      const txt = data.content.map(c => c.text || '').join('').replace(/```[a-z]*|```/g,'').trim();
+      const txt = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').replace(/```[a-z]*|```/g,'').trim();
       const items = JSON.parse(txt);
       if (!Array.isArray(items) || items.length === 0) { throw new Error('Không nhận diện được'); }
 
@@ -1806,11 +1822,37 @@ async function processImage(file) {
   reader.readAsDataURL(file);
 }
 
+/* ── FINAL (nhập tổng) ── */
+function _resetFinalPane() {
+  const inp = document.getElementById('finalCountInput');
+  if (inp) { inp.value = ''; }
+  const tv = document.getElementById('finalTotalVal');
+  if (tv) { tv.textContent = '0 ₫'; }
+}
+
+function updateFinalTotal() {
+  const inp = document.getElementById('finalCountInput');
+  const tv = document.getElementById('finalTotalVal');
+  if (!inp || !tv) { return; }
+  const v = parseFloat(inp.value) || 0;
+  tv.textContent = (v * 1000).toLocaleString('vi-VN') + ' ₫';
+}
+
+function applyCountFinal() {
+  const inp = document.getElementById('finalCountInput');
+  const v = parseFloat(inp ? inp.value : '') || 0;
+  if (v > 0 && currentCountType) {
+    DAYS[dayIdx][currentCountType].physicalCount = v;
+  }
+  closeCountModal();
+  render();
+}
+
 function applyCountFromCam() {
   if (_camTotal > 0 && currentCountType) {
     DAYS[dayIdx][currentCountType].physicalCount = _camTotal;
   }
-  closeModal('countModal');
+  closeCountModal();
   render();
 }
 

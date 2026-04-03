@@ -706,6 +706,8 @@ const CB_REPO    = 'https://api.github.com/repos/tasuaongvang/kov/contents/cashb
 const KV_PROXY   = 'https://kv-proxy.tasua-ongvang.workers.dev';
 const KV_BRANCH  = 76620;
 let _kvToken  = null;
+let _kvRetailer = 'cov';
+let _kvFingerprint = '';
 let _connStatus = { type: 'idle', msg: '' };
 
 function setStatus(type, msg) {
@@ -765,12 +767,14 @@ async function fetchAndApplyToken(pat) {
   const json = await ghGet(pat, '/keys.enc');
   if (!json) { throw new Error('Chưa có file keys.enc'); }
   const data = await cbDecryptToken(json.content);
-  // token = XHR cashflow token, angularToken = JWT dài (cho display)
-  _kvToken = (data.token || data.angularToken || '').replace(/^Bearer\s+/i, '');
-  // kiểm tra hết hạn qua angularToken (JWT) hoặc token chính nếu là JWT
+  // token = Angular JWT → đúng cho cashflow API
+  _kvToken = (data.token || data.kvToken || data.angularToken || '').replace(/^Bearer\s+/i, '');
+  if (data.retailer) { _kvRetailer = data.retailer; }
+  if (data.fingerPrintKey) { _kvFingerprint = data.fingerPrintKey; }
+  // kiểm tra hết hạn
   const jwt = parseJwt(data.angularToken || data.token);
   if (jwt && jwt.exp && jwt.exp * 1000 < Date.now()) {
-    throw new Error('Token KV đã hết hạn — đăng nhập lại KiotvViet rồi Backup từ HackerNote');
+    throw new Error('Token KV đã hết hạn — vào KiotvViet để HackerNote capture token mới rồi Backup lại');
   }
   if (data.pat) { localStorage.setItem(CB_PAT_KEY, data.pat); }
   return data;
@@ -2117,16 +2121,17 @@ window.addEventListener('beforeprint', () => {
 /* ── KV LIVE FETCH (qua Cloudflare proxy) ── */
 
 function _kvProxyFetch(path) {
-  const authHeader = /^Bearer\s+/i.test(_kvToken) ? _kvToken : 'Bearer ' + _kvToken;
-  return fetch(KV_PROXY + '?_t=' + encodeURIComponent('https://api-man1.kiotviet.vn' + path), {
-    headers: { Authorization: authHeader },
-  }).then(r => {
-    if (r.status === 401 || r.status === 403) {
-      throw new Error('Token KV hết hạn (HTTP ' + r.status + ') — cần đăng nhập lại KiotvViet để HackerNote capture token mới');
-    }
-    if (!r.ok) { throw new Error('KV HTTP ' + r.status); }
-    return r.json();
-  });
+  const headers = {
+    Authorization: 'Bearer ' + _kvToken,
+    Accept: 'application/json, text/plain, */*',
+    Retailer: _kvRetailer,
+    Branchid: String(KV_BRANCH),
+    Isusekvclient: '1',
+    Referer: 'https://cov.kiotviet.vn/',
+  };
+  if (_kvFingerprint) { headers.Fingerprintkey = _kvFingerprint; }
+  return fetch(KV_PROXY + '?_t=' + encodeURIComponent('https://api-man1.kiotviet.vn' + path), { headers })
+    .then(r => { if (!r.ok) { throw new Error('KV HTTP ' + r.status); } return r.json(); });
 }
 
 /* ── KV DATE RANGE: build datetime filter cho ngày bất kỳ ── */

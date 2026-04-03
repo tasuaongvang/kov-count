@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Sổ Quỹ</title>
+<title>Cân Sổ Quỹ</title>
 <!-- PWA -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -716,6 +716,7 @@ function setStatus(type, msg) {
   dot.className = 'status-dot' + (type === 'err' ? ' err' : type === 'loading' ? ' loading' : '');
   txt.textContent = (type === 'ok' && dayData().chotDone) ? 'Đã chốt sổ · ' + msg : msg;
 }
+function errMsg(e) { return e && (e.message || e.name || String(e)) || 'lỗi không rõ'; }
 
 async function cbDecryptToken(b64) {
   const raw = atob(b64.replace(/\n/g, ''));
@@ -788,7 +789,7 @@ async function doSetupSave() {
     setTimeout(() => { closeModal('setupModal'); boot(); }, 800);
   } catch(e) {
     statusEl.style.color = 'var(--red)';
-    statusEl.textContent = '✗ ' + e.message;
+    statusEl.textContent = '✗ ' + errMsg(e);
     btn.disabled = false;
   }
 }
@@ -818,13 +819,13 @@ async function boot() {
     try {
       await fetchKVDayData(dayData());
     } catch(e) {
-      setFetchErr('⚠ ' + e.message);
+      setFetchErr('⚠ ' + errMsg(e));
     }
     const now = new Date();
     setStatus('ok', `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} · ${tokenInfo}`);
     render();
   } catch(e) {
-    setStatus('err', 'Lỗi: ' + e.message);
+    setStatus('err', 'Lỗi: ' + errMsg(e));
   }
 }
 
@@ -1257,7 +1258,7 @@ function changeDay(dir) {
   setFetchErr('');
   fetchKVDayData(dayData())
     .then(() => { render(); })
-    .catch(e => { setFetchErr('⚠ ' + e.message); render(); });
+    .catch(e => { setFetchErr('⚠ ' + errMsg(e)); render(); });
 }
 
 /* ── SYNC ── */
@@ -1282,12 +1283,12 @@ async function doSync() {
       setFetchErr('');
       await fetchKVDayData(dayData());
     } catch(e) {
-      setFetchErr('⚠ ' + e.message);
+      setFetchErr('⚠ ' + errMsg(e));
     }
     setStatus('ok', `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} · ${tokenInfo}`);
     render();
   } catch(e) {
-    setStatus('err', 'Lỗi: ' + e.message);
+    setStatus('err', 'Lỗi: ' + errMsg(e));
   } finally {
     if (btn) { btn.classList.remove('spinning'); }
     if (lbl) { lbl.textContent = 'Đồng bộ'; }
@@ -1360,7 +1361,7 @@ function calSelectDay(key) {
   setFetchErr('');
   fetchKVDayData(dayData())
     .then(() => { render(); })
-    .catch(e => { setFetchErr('⚠ ' + e.message); render(); });
+    .catch(e => { setFetchErr('⚠ ' + errMsg(e)); render(); });
   document.getElementById('calPopup').classList.remove('open');
 }
 
@@ -1513,7 +1514,7 @@ async function kvSyncVoucher(voucher, isReceipt, amountK) {
     voucher.kvErr = null;
   } catch(e) {
     voucher.kvPending = false;
-    voucher.kvErr = e.message;
+    voucher.kvErr = errMsg(e);
   }
   render();
 }

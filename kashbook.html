@@ -834,7 +834,10 @@ async function boot() {
     const jwt = parseJwt(tokenData.token);
     const daysLeft = jwt && jwt.exp ? Math.ceil((jwt.exp * 1000 - Date.now()) / 86400000) : null;
     const tokenInfo = daysLeft !== null ? `token còn ${daysLeft} ngày` : 'token ok';
-    if (!_ghLoaded.has(dayData().key)) {
+    if (_kvToken) {
+      // có token KV → fetch thẳng từ KiotvViet, bỏ qua GitHub JSON
+      await fetchKVDayData(dayData());
+    } else if (!_ghLoaded.has(dayData().key)) {
       await loadDayFromGH(pat, dayData().key);
       if (!dayData().chotDone) { await _loadDraft(pat, dayData().key).catch(() => {}); }
       _ghLoaded.add(dayData().key);
@@ -842,10 +845,13 @@ async function boot() {
     const now = new Date();
     setStatus('ok', `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} · ${tokenInfo}`);
     render();
-    if (!dayData().chotDone) {
+    if (!_kvToken && !dayData().chotDone) {
+      // fallback: nếu không có KV token, thử fetch KV live bổ sung
       fetchKVLiveData(dayData())
         .then(() => { markDirty(); render(); })
         .catch(e => console.warn('KV live:', e.message));
+    } else {
+      markDirty();
     }
   } catch(e) {
     setStatus('err', 'Lỗi: ' + e.message);
@@ -1277,14 +1283,20 @@ function changeDay(dir) {
   dayIdx = next;
   openVouchers = {};
   render();
-  const pat = localStorage.getItem(CB_PAT_KEY);
   const key = dayData().key;
-  if (pat && !_ghLoaded.has(key)) {
-    loadDayFromGH(pat, key)
-      .then(() => { _ghLoaded.add(key); if (!dayData().chotDone) { return _loadDraft(pat, key); } })
-      .then(() => { if (!dayData().chotDone) { return fetchKVLiveData(dayData()); } })
-      .then(() => { if (!dayData().chotDone) { markDirty(); } render(); })
-      .catch(() => render());
+  if (_kvToken) {
+    fetchKVDayData(dayData())
+      .then(() => { markDirty(); render(); })
+      .catch(e => { setStatus('err', 'KV: ' + e.message); render(); });
+  } else {
+    const pat = localStorage.getItem(CB_PAT_KEY);
+    if (pat && !_ghLoaded.has(key)) {
+      loadDayFromGH(pat, key)
+        .then(() => { _ghLoaded.add(key); if (!dayData().chotDone) { return _loadDraft(pat, key); } })
+        .then(() => { if (!dayData().chotDone) { return fetchKVLiveData(dayData()); } })
+        .then(() => { if (!dayData().chotDone) { markDirty(); } render(); })
+        .catch(() => render());
+    }
   }
 }
 
@@ -1304,19 +1316,25 @@ async function doSync() {
     const tokenData = await fetchAndApplyToken(pat);
     const jwt = parseJwt(tokenData.token);
     const daysLeft = jwt && jwt.exp ? Math.ceil((jwt.exp * 1000 - Date.now()) / 86400000) : null;
-    _ghLoaded.delete(dayData().key);
-    await loadDayFromGH(pat, dayData().key);
-    if (!dayData().chotDone) { await _loadDraft(pat, dayData().key).catch(() => {}); }
-    _ghLoaded.add(dayData().key);
     const now = new Date();
     const tokenInfo = daysLeft !== null ? `token còn ${daysLeft} ngày` : 'token ok';
+    if (_kvToken) {
+      // có KV token → fetch thẳng từ KiotvViet
+      await fetchKVDayData(dayData());
+      markDirty();
+    } else {
+      _ghLoaded.delete(dayData().key);
+      await loadDayFromGH(pat, dayData().key);
+      if (!dayData().chotDone) { await _loadDraft(pat, dayData().key).catch(() => {}); }
+      _ghLoaded.add(dayData().key);
+      if (!dayData().chotDone) {
+        fetchKVLiveData(dayData())
+          .then(() => { markDirty(); render(); })
+          .catch(e => console.warn('KV live:', e.message));
+      }
+    }
     setStatus('ok', `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} · ${tokenInfo}`);
     render();
-    if (!dayData().chotDone) {
-      fetchKVLiveData(dayData())
-        .then(() => { markDirty(); render(); })
-        .catch(e => console.warn('KV live:', e.message));
-    }
   } catch(e) {
     setStatus('err', 'Lỗi: ' + e.message);
   } finally {
@@ -1388,13 +1406,19 @@ function calSelectDay(key) {
   dayIdx = idx;
   openVouchers = {};
   render();
-  const pat = localStorage.getItem(CB_PAT_KEY);
-  if (pat && !_ghLoaded.has(key)) {
-    loadDayFromGH(pat, key)
-      .then(() => { _ghLoaded.add(key); if (!dayData().chotDone) { return _loadDraft(pat, key); } })
-      .then(() => { if (!dayData().chotDone) { return fetchKVLiveData(dayData()); } })
-      .then(() => { if (!dayData().chotDone) { markDirty(); } render(); })
-      .catch(() => render());
+  if (_kvToken) {
+    fetchKVDayData(dayData())
+      .then(() => { markDirty(); render(); })
+      .catch(e => { setStatus('err', 'KV: ' + e.message); render(); });
+  } else {
+    const pat = localStorage.getItem(CB_PAT_KEY);
+    if (pat && !_ghLoaded.has(key)) {
+      loadDayFromGH(pat, key)
+        .then(() => { _ghLoaded.add(key); if (!dayData().chotDone) { return _loadDraft(pat, key); } })
+        .then(() => { if (!dayData().chotDone) { return fetchKVLiveData(dayData()); } })
+        .then(() => { if (!dayData().chotDone) { markDirty(); } render(); })
+        .catch(() => render());
+    }
   }
   document.getElementById('calPopup').classList.remove('open');
 }
@@ -2214,6 +2238,16 @@ function _kvProxyFetch(path) {
   return fetch(KV_PROXY + '?_t=' + encodeURIComponent('https://api-man1.kiotviet.vn' + path), {
     headers: { Authorization: 'Bearer ' + _kvToken },
   }).then(r => { if (!r.ok) { throw new Error('KV HTTP ' + r.status); } return r.json(); });
+}
+
+/* ── KV PRIMARY FETCH: xóa items cũ từ KV rồi load lại sạch ── */
+async function fetchKVDayData(d) {
+  if (!_kvToken || d.chotDone) { return; }
+  ['bop', 'ket'].forEach(sec => {
+    d[sec].chiItems = d[sec].chiItems.filter(v => !v.kvId);
+    d[sec].thuItems = d[sec].thuItems.filter(v => !v.kvId);
+  });
+  await fetchKVLiveData(d);
 }
 
 async function fetchKVLiveData(d) {

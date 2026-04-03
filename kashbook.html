@@ -72,59 +72,47 @@ body{display:flex;flex-direction:column;align-items:center}
 #app{width:100%;max-width:430px;min-height:100dvh;display:flex;flex-direction:column;position:relative}
 
 /* ── TOPBAR ── */
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 12px 8px;position:sticky;top:0;z-index:100;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
-
-/* Row 1: date navigation */
-.topbar-row-date{display:flex;align-items:center;justify-content:center;gap:4px;position:relative}
-.topbar-status{display:flex;align-items:center;gap:4px;justify-content:center;margin-top:1px}
-.date-label{font-size:17px;font-weight:700;min-width:150px;text-align:center;letter-spacing:-0.03em;cursor:pointer;padding:5px 10px;border-radius:var(--r-md);transition:background .15s;color:var(--text)}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px 10px;position:sticky;top:0;z-index:100;flex-shrink:0}
+.topbar-row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.topbar-left{display:flex;align-items:center;gap:6px;flex:1}
+.topbar-center{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0}
+.date-nav-row{display:flex;align-items:center;gap:2px}
+.topbar-center-sub{display:flex;align-items:center;gap:5px;justify-content:center}
+.topbar-right{display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end}
+.date-label{font-size:16px;font-weight:600;min-width:120px;text-align:center;letter-spacing:-0.02em;cursor:pointer;padding:4px 6px;border-radius:var(--r-sm);transition:background .15s}
 .date-label:hover{background:var(--surface2)}
-.nav-btn{width:38px;height:38px;border:none;background:none;color:var(--text2);font-size:22px;cursor:pointer;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;transition:background .15s}
+.nav-btn{width:32px;height:32px;border:none;background:none;color:var(--text2);font-size:20px;cursor:pointer;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;transition:background .15s}
 .nav-btn:active{background:var(--surface2)}
-
-/* Row 2: action buttons — 5 equal slots */
-.topbar-row-btns{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
-.tb-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:52px;border:1px solid var(--border2);border-radius:var(--r-md);background:var(--surface2);color:var(--text2);cursor:pointer;font-family:var(--sans);font-size:10px;font-weight:500;transition:all .15s;-webkit-tap-highlight-color:transparent;padding:0}
-.tb-btn svg{flex-shrink:0}
-.tb-btn:active{background:var(--bg2)}
-.tb-btn-label{line-height:1;color:var(--text3)}
-
-/* Chốt button — accent */
-.tb-btn-chot{background:var(--accent);border-color:transparent;color:#fff}
-.tb-btn-chot .tb-btn-label{color:rgba(255,255,255,.8)}
-.tb-btn-chot:active{background:#C2185B}
-.tb-btn-chot.done{background:var(--green-mid);border-color:transparent;color:#fff}
-.tb-btn-chot.disabled{background:var(--surface2);border-color:var(--border2);color:var(--text3);cursor:not-allowed}
-.tb-btn-chot.disabled .tb-btn-label{color:var(--text3)}
-
-/* Sync spinning */
+.count-wrap{position:relative;display:flex;align-items:center}
+/* ── COUNT OVERLAY (full-width timeline) ── */
+.count-overlay{position:absolute;inset:0;background:var(--surface);z-index:20;display:flex;align-items:center;padding:0 12px;gap:10px;transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1);border-bottom:1px solid var(--border)}
+.count-overlay.open{transform:translateX(0)}
+.ct-close{width:28px;height:28px;border:none;background:none;color:var(--text2);font-size:14px;cursor:pointer;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.ct-close:hover{background:var(--surface2)}
+.ct-line{flex:1;height:1px;background:var(--border2);min-width:6px}
+.ct-pill{border:1px solid var(--border2);border-radius:20px;padding:6px 13px;font-size:13px;font-family:var(--sans);font-weight:500;background:var(--surface2);color:var(--text);cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.ct-pill:hover{background:var(--green-bg);border-color:var(--green-mid);color:var(--green)}
+.ct-pill:active{background:var(--green-bg)}
+.ct-pill-tmr{border-color:var(--amber);color:var(--amber);background:var(--amber-bg)}
+.ct-pill-tmr:hover{background:var(--amber-bg);border-color:var(--amber);color:var(--amber)}
+.sync-btn{display:flex;align-items:center;gap:5px;border:1px solid var(--border2);border-radius:20px;padding:5px 11px;font-size:13px;font-family:var(--sans);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .15s;flex-shrink:0}
+.sync-btn:active{background:var(--bg2)}
+.btn-chot-top{background:var(--accent);color:#fff;border-color:transparent}
+.btn-chot-top:active{background:#C2185B}
+.btn-chot-top.done{background:var(--text3);border-color:transparent}
+.btn-chot-top.disabled{background:var(--surface2);color:var(--text3);border-color:var(--border2);cursor:not-allowed}
+.btn-text{display:none}
 .sync-icon{display:inline-block;transition:transform .6s}
-.spinning .sync-icon{animation:spin .7s linear infinite}
+.sync-btn.spinning .sync-icon{animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-
-/* status */
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green-mid);flex-shrink:0}
 .status-dot.err{background:var(--red)}
 .status-dot.loading{background:var(--amber);animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 .status-text{font-size:11px;color:var(--text3)}
 
-/* ── COUNT OVERLAY (covers entire topbar) ── */
-.count-overlay{position:absolute;inset:0;background:var(--surface);z-index:20;display:flex;align-items:center;padding:0 10px;gap:8px;transform:translateY(-110%);transition:transform .28s cubic-bezier(.4,0,.2,1);border-bottom:1px solid var(--border);border-radius:0}
-.count-overlay.open{transform:translateY(0)}
-.ct-close{width:32px;height:32px;border:none;background:none;color:var(--text2);font-size:15px;cursor:pointer;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center}
-.ct-close:hover{background:var(--surface2)}
-.ct-line{flex:1;height:1px;background:var(--border2);min-width:4px}
-.ct-pill{border:1px solid var(--border2);border-radius:20px;padding:8px 12px;font-size:13px;font-family:var(--sans);font-weight:500;background:var(--surface2);color:var(--text);cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0}
-.ct-pill:active{background:var(--green-bg)}
-.ct-pill-tmr{border-color:var(--amber);color:var(--amber);background:var(--amber-bg)}
-
-/* legacy aliases (used in JS render) */
-.sync-btn{display:flex;align-items:center;gap:5px;border:1px solid var(--border2);border-radius:20px;padding:5px 11px;font-size:13px;font-family:var(--sans);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .15s;flex-shrink:0}
-.btn-text{display:none}
-
 /* ── CALENDAR POPUP ── */
-.cal-popup{display:none;position:sticky;top:120px;z-index:99;background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px 14px;box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.cal-popup{display:none;position:sticky;top:57px;z-index:99;background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px 14px;box-shadow:0 6px 20px rgba(0,0,0,.1)}
 .cal-popup.open{display:block}
 .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .cal-title{font-size:14px;font-weight:600}
@@ -386,69 +374,62 @@ body{display:flex;flex-direction:column;align-items:center}
 <div id="app">
 
   <!-- TOPBAR -->
-  <div class="topbar" style="position:relative">
+  <div class="topbar">
+    <div class="topbar-row1">
 
-    <!-- ROW 1: Date navigation -->
-    <div class="topbar-row-date">
-      <button class="nav-btn" onclick="changeDay(-1)">&#8249;</button>
-      <span class="date-label" id="dateLabel" onclick="openCal()"></span>
-      <button class="nav-btn" onclick="changeDay(1)">&#8250;</button>
+      <div class="topbar-left">
+        <button class="sync-btn" id="syncBtn" onclick="doSync()">
+          <span class="sync-icon">&#8635;</span>
+          <span class="btn-text">Đồng bộ</span>
+        </button>
+        <button class="sync-btn" id="countMainBtn" onclick="toggleCountOpts()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
+          <span class="btn-text">Đếm tiền</span>
+        </button>
+      </div>
+
+      <div class="topbar-center">
+        <div class="date-nav-row">
+          <button class="nav-btn" onclick="changeDay(-1)">&#8249;</button>
+          <span class="date-label" id="dateLabel" onclick="openCal()"></span>
+          <button class="nav-btn" onclick="changeDay(1)">&#8250;</button>
+        </div>
+        <div class="topbar-center-sub">
+          <div class="status-dot" id="statusDot"></div>
+          <span class="status-text" id="statusText"></span>
+          <span id="draftDot" style="display:none;font-size:10px;color:var(--amber);margin-left:2px" title="Đang lưu nháp…">●</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <button class="sync-btn" onclick="openExportModal()" title="Xuất / In dữ liệu" style="padding:5px 9px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span class="btn-text">Xuất</span>
+        </button>
+        <button class="sync-btn" onclick="openSetup()" title="Cài đặt GitHub PAT" style="padding:5px 9px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button class="sync-btn btn-chot-top" id="chotBtn" onclick="openChot()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span class="btn-text" id="chotLabel">Chốt sổ</span>
+        </button>
+      </div>
+
+      <!-- COUNT OVERLAY -->
+      <div class="count-overlay" id="countOpts">
+        <button class="ct-close" onclick="toggleCountOpts()">&#10005;</button>
+        <div class="ct-line"></div>
+        <button class="ct-pill" onclick="openCount('ket')">Két</button>
+        <div class="ct-line"></div>
+        <button class="ct-pill" onclick="openCount('bop')">Bóp hôm nay</button>
+        <div class="ct-line"></div>
+        <button class="ct-pill ct-pill-tmr" onclick="openCount('boptr')">Bóp ngày mai</button>
+        <div class="ct-line"></div>
+        <button class="ct-pill" onclick="openCount('lau')">Lầu</button>
+        <div class="ct-line"></div>
+      </div>
+
     </div>
-    <div class="topbar-status">
-      <div class="status-dot" id="statusDot"></div>
-      <span class="status-text" id="statusText"></span>
-      <span id="draftDot" style="display:none;font-size:10px;color:var(--amber);margin-left:2px" title="Đang lưu nháp…">●</span>
-    </div>
-
-    <!-- ROW 2: Action buttons -->
-    <div class="topbar-row-btns">
-
-      <!-- Đồng bộ -->
-      <button class="tb-btn" id="syncBtn" onclick="doSync()">
-        <span class="sync-icon" style="font-size:18px">&#8635;</span>
-        <span class="tb-btn-label">Đồng bộ</span>
-      </button>
-
-      <!-- Đếm tiền -->
-      <button class="tb-btn" id="countMainBtn" onclick="toggleCountOpts()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
-        <span class="tb-btn-label">Đếm tiền</span>
-      </button>
-
-      <!-- Xuất -->
-      <button class="tb-btn" onclick="openExportModal()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span class="tb-btn-label">Xuất</span>
-      </button>
-
-      <!-- Cài đặt -->
-      <button class="tb-btn" onclick="openSetup()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        <span class="tb-btn-label">Cài đặt</span>
-      </button>
-
-      <!-- Chốt sổ -->
-      <button class="tb-btn tb-btn-chot" id="chotBtn" onclick="openChot()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <span class="tb-btn-label" id="chotLabel">Chốt sổ</span>
-      </button>
-
-    </div>
-
-    <!-- COUNT OVERLAY (slides over entire topbar) -->
-    <div class="count-overlay" id="countOpts">
-      <button class="ct-close" onclick="toggleCountOpts()">&#10005;</button>
-      <div class="ct-line"></div>
-      <button class="ct-pill" onclick="openCount('ket')">Két</button>
-      <div class="ct-line"></div>
-      <button class="ct-pill" onclick="openCount('bop')">Bóp hôm nay</button>
-      <div class="ct-line"></div>
-      <button class="ct-pill ct-pill-tmr" onclick="openCount('boptr')">Bóp ngày mai</button>
-      <div class="ct-line"></div>
-      <button class="ct-pill" onclick="openCount('lau')">Lầu</button>
-      <div class="ct-line"></div>
-    </div>
-
   </div>
 
   <!-- CALENDAR POPUP -->
@@ -721,7 +702,6 @@ const IC_SAFE     = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"
 /* ── GITHUB + CRYPTO ── */
 const CB_SALT    = new Uint8Array([111,110,103,118,97,110,103,50,48,49,56,13,7,23,41,3]);
 const CB_PAT_KEY = 'hgn_gh_pat'; // shared với Hacker Notes
-const CB_PAT_DEFAULT = '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';
 const CB_REPO    = 'https://api.github.com/repos/tasuaongvang/kov/contents/cashbook';
 const KV_PROXY   = 'https://kv-proxy.tasua-ongvang.workers.dev';
 const KV_BRANCH  = 76620;
@@ -745,7 +725,7 @@ async function cbDecryptToken(b64) {
   const raw = atob(b64.replace(/\n/g, ''));
   const buf = Uint8Array.from(raw, c => c.charCodeAt(0));
   const iv = buf.slice(0, 12), ct = buf.slice(12);
-  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode('ongvang2018'), 'PBKDF2', false, ['deriveKey']);
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode('ongvang!2018'), 'PBKDF2', false, ['deriveKey']);
   const key = await crypto.subtle.deriveKey({ name:'PBKDF2', salt:CB_SALT, iterations:100000, hash:'SHA-256' }, km, { name:'AES-GCM', length:256 }, false, ['decrypt']);
   return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ct)));
 }
@@ -762,7 +742,6 @@ function parseJwt(raw) {
 async function ghGet(pat, path) {
   const res = await fetch(CB_REPO + path, { headers: { Authorization: 'Bearer ' + pat, Accept: 'application/vnd.github+json' } });
   if (res.status === 404) { return null; }
-  if (res.status === 401) { _handleBadPat(); throw new Error('GitHub PAT không hợp lệ hoặc hết hạn'); }
   if (!res.ok) { throw new Error('GitHub ' + res.status); }
   return res.json();
 }
@@ -775,22 +754,17 @@ async function ghPut(pat, path, text, sha, message) {
     headers: { Authorization: 'Bearer ' + pat, 'Content-Type': 'application/json', Accept: 'application/vnd.github+json' },
     body: JSON.stringify(body),
   });
-  if (res.status === 401) { _handleBadPat(); throw new Error('GitHub PAT không hợp lệ hoặc hết hạn'); }
   if (!res.ok) { throw new Error('GitHub ' + res.status); }
   return res.json();
 }
 
-function _handleBadPat() {
-  localStorage.removeItem(CB_PAT_KEY);
-  setStatus('err', 'PAT hết hạn — đang mở cài đặt…');
-  setTimeout(openSetup, 600);
-}
-
 async function fetchAndApplyToken(pat) {
-  const json = await ghGet(pat, '/kv_token.enc');
-  if (!json) { throw new Error('Chưa có file kv_token.enc'); }
+  const json = await ghGet(pat, '/keys.enc');
+  if (!json) { throw new Error('Chưa có file keys.enc'); }
   const data = await cbDecryptToken(json.content);
   _kvToken = data.token;
+  // tự động cập nhật PAT từ bundle nếu có
+  if (data.pat) { localStorage.setItem(CB_PAT_KEY, data.pat); }
   return data;
 }
 
@@ -811,7 +785,7 @@ async function saveDayToGH(pat, d) {
 }
 
 function openSetup() {
-  document.getElementById('setupPatInput').value = localStorage.getItem(CB_PAT_KEY) || CB_PAT_DEFAULT;
+  document.getElementById('setupPatInput').value = localStorage.getItem(CB_PAT_KEY) || '';
   document.getElementById('setupStatus').textContent = '';
   const btn = document.getElementById('setupSaveBtn');
   if (btn) { btn.disabled = false; }
@@ -852,9 +826,8 @@ async function boot() {
     if (idx >= 0) { dayIdx = idx; }
   }
   render();
-  if (!localStorage.getItem(CB_PAT_KEY)) { localStorage.setItem(CB_PAT_KEY, CB_PAT_DEFAULT); }
   const pat = localStorage.getItem(CB_PAT_KEY);
-  if (!pat) { setStatus('idle', 'Chưa kết nối — nhấn ⚙ để cài đặt'); return; }
+  if (!pat) { setStatus('idle', 'Chưa kết nối — nhấn ⚙ để cài đặt'); openSetup(); return; }
   setStatus('loading', 'Đang kết nối GitHub…');
   try {
     const tokenData = await fetchAndApplyToken(pat);
@@ -903,7 +876,7 @@ function render() {
   if (chotLabel) { chotLabel.textContent = d.chotDone ? 'Đã chốt ✓' : 'Chốt sổ'; }
   if (chotBtn) {
     const cls = d.chotDone ? ' done' : !chotReady.ok ? ' disabled' : '';
-    chotBtn.className = 'tb-btn tb-btn-chot' + cls;
+    chotBtn.className = 'sync-btn btn-chot-top' + cls;
     chotBtn.onclick = (d.chotDone || !chotReady.ok) ? null : openChot;
     chotBtn.title = chotReady.reason;
   }
@@ -1318,10 +1291,13 @@ function changeDay(dir) {
 /* ── SYNC ── */
 async function doSync() {
   const btn = document.getElementById('syncBtn');
+  const lbl = btn ? btn.querySelector('.btn-text') : null;
   if (btn) { btn.classList.add('spinning'); }
+  if (lbl) { lbl.textContent = 'Đang kéo...'; }
   const pat = localStorage.getItem(CB_PAT_KEY);
   if (!pat) {
     if (btn) { btn.classList.remove('spinning'); }
+    if (lbl) { lbl.textContent = 'Đồng bộ'; }
     openSetup(); return;
   }
   try {
@@ -1345,6 +1321,7 @@ async function doSync() {
     setStatus('err', 'Lỗi: ' + e.message);
   } finally {
     if (btn) { btn.classList.remove('spinning'); }
+    if (lbl) { lbl.textContent = 'Đồng bộ'; }
   }
 }
 
@@ -2224,30 +2201,25 @@ window.addEventListener('beforeprint', () => {
 });
 
 /* ── KV LIVE FETCH (qua Cloudflare proxy) ── */
-function _kvDateRange(key) {
-  const p = key.split('-');
-  const d = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
-  const next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-  const pad = n => String(n).padStart(2, '0');
-  const fmt = dt => `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T00:00:00`;
-  return { start: fmt(d), end: fmt(next) };
+function _kvDateFilter(key) {
+  const todayKey = _makeDayKey(new Date());
+  const yest = new Date(); yest.setDate(yest.getDate() - 1);
+  const yestKey = _makeDayKey(yest);
+  if (key === todayKey) { return 'today'; }
+  if (key === yestKey)  { return 'yesterday'; }
+  return key.replace(/-/g, '/'); // fallback: '2026/04/01'
 }
 
 function _kvProxyFetch(path) {
   return fetch(KV_PROXY + '?_t=' + encodeURIComponent('https://api-man1.kiotviet.vn' + path), {
     headers: { Authorization: 'Bearer ' + _kvToken },
-  }).then(r => {
-    if (r.status === 403) { throw new Error('KV token hết hạn — cần refresh token'); }
-    if (!r.ok) { throw new Error('KV HTTP ' + r.status); }
-    return r.json();
-  });
+  }).then(r => { if (!r.ok) { throw new Error('KV HTTP ' + r.status); } return r.json(); });
 }
 
 async function fetchKVLiveData(d) {
   if (!_kvToken || d.chotDone) { return; }
-  const { start, end } = _kvDateRange(d.key);
-  const filterStr = `(BranchId eq ${KV_BRANCH} and (TransDate ge datetime'${start}' and TransDate lt datetime'${end}') and Status eq 0 and Method eq 'Cash')`;
-  const f = encodeURIComponent(filterStr);
+  const dateStr = _kvDateFilter(d.key);
+  const f = encodeURIComponent(`(BranchId eq ${KV_BRANCH} and TransDate eq '${dateStr}' and Status eq 0 and Method eq 'Cash')`);
   const base = `format=json&IncludeTotal=True&$inlinecount=allpages&CalcDebtStatus=[1,0,-1]`;
 
   const [summary, list] = await Promise.all([

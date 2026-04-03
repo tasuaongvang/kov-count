@@ -1,1222 +1,2190 @@
-// ==UserScript==
-// @name         Hacker Notes
-// @namespace    http://tampermonkey.net/
-// @version      11.3
-// @description  Hacker note + Token Manager. Auto-backup KV token + PAT to kov/cashbook/keys.enc (AES-GCM, ongvang!2018).
-// @match        https://cov.kiotviet.vn/*
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_setClipboard
-// @grant        GM_xmlhttpRequest
-// @grant        unsafeWindow
-// @connect      api.github.com
-// ==/UserScript==
-
-(function() {
-    'use strict';
-
-    const storageKey = 'hacker_scratchpad_data';
-    const posKey = 'hacker_scratchpad_pos';
-    const randomVer = `${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 99)}`;
-
-    // --- 1. Load Saved Position ---
-    const savedPos = GM_getValue(posKey, { top: '150px', left: 'calc(50% - 275px)' });
-
-    const container = document.createElement('div');
-    const titleBar = document.createElement('div');
-    const textArea = document.createElement('textarea');
-    const btnContainer = document.createElement('div');
-
-    const copyExitBtn = document.createElement('button');
-    const saveExitBtn = document.createElement('button');
-    const purgeBtn = document.createElement('button');
-
-    // --- 2. Styles ---
-    Object.assign(container.style, {
-        display: 'none',
-        position: 'fixed',
-        top: savedPos.top,
-        left: savedPos.left,
-        width: '550px',
-        backgroundColor: '#0a0a0a',
-        border: '2px solid #d4af37',
-        boxShadow: '0 0 20px rgba(212, 175, 55, 0.3)',
-        zIndex: '2147483647',
-        padding: '15px',
-        fontFamily: '"Courier New", Courier, monospace',
-        boxSizing: 'border-box'
-    });
-
-    Object.assign(titleBar.style, {
-        color: '#d4af37', fontWeight: 'bold', marginBottom: '10px',
-        borderBottom: '1px solid #d4af37', paddingBottom: '5px',
-        cursor: 'move', userSelect: 'none'
-    });
-
-    Object.assign(textArea.style, {
-        width: '100%', height: '350px', backgroundColor: '#000',
-        color: '#FFD700', border: '1px solid #554400', padding: '12px',
-        boxSizing: 'border-box', fontFamily: 'Consolas, monospace',
-        fontSize: '14px', resize: 'vertical', outline: 'none'
-    });
-
-    Object.assign(btnContainer.style, {
-        display: 'flex', justifyContent: 'space-between', marginTop: '15px', gap: '5px'
-    });
-
-    const styleBtn = (btn, text) => {
-        btn.innerText = `[ ${text} ]`;
-        Object.assign(btn.style, {
-            backgroundColor: 'transparent', color: '#d4af37', border: 'none',
-            cursor: 'pointer', fontFamily: 'monospace', fontWeight: 'bold',
-            outline: 'none', fontSize: '12px', whiteSpace: 'nowrap'
-        });
-        btn.onmouseover = () => btn.style.color = '#fff';
-        btn.onmouseout = () => btn.style.color = '#d4af37';
-        btn.onmousedown = (e) => e.stopPropagation();
-    };
-
-    styleBtn(copyExitBtn, 'COPY AND EXIT');
-    styleBtn(saveExitBtn, 'SAVE AND EXIT');
-    styleBtn(purgeBtn, 'PURGE');
-
-    // --- 3. Dragging & Persistence ---
-    let isDragging = false, offsetX, offsetY;
-    titleBar.onmousedown = (e) => {
-        isDragging = true;
-        const rect = container.getBoundingClientRect();
-        offsetX = e.clientX - rect.left;
-        offsetY = e.clientY - rect.top;
-    };
-
-    window.addEventListener('mousemove', (e) => {
-        if (isDragging) {
-            container.style.left = (e.clientX - offsetX) + 'px';
-            container.style.top = (e.clientY - offsetY) + 'px';
-        }
-    });
-
-    window.addEventListener('mouseup', () => {
-        if (isDragging) {
-            isDragging = false;
-            GM_setValue(posKey, {
-                top: container.style.top,
-                left: container.style.left
-            });
-        }
-    });
-
-    // --- 4. Logic ---
-    titleBar.innerText = `ENCRYPTED_LOGS_v${randomVer}`;
-    textArea.value = GM_getValue(storageKey, '');
-    btnContainer.append(copyExitBtn, saveExitBtn, purgeBtn);
-    container.append(titleBar, textArea, btnContainer);
-    document.body.appendChild(container);
-
-    const toggleNote = (off = false) => {
-        container.style.display = (off || container.style.display === 'block') ? 'none' : 'block';
-        if (container.style.display === 'block') {
-            textArea.focus();
-        } else {
-            try { unsafeWindow.dispatchEvent(new CustomEvent('f3-return')); } catch (_) { /* noop */ }
-        }
-    };
-
-    textArea.oninput = () => GM_setValue(storageKey, textArea.value);
-
-    // [ COPY AND EXIT ] Logic
-    copyExitBtn.onclick = () => {
-        GM_setClipboard(textArea.value);
-        toggleNote(true);
-    };
-
-    // [ SAVE AND EXIT ] Logic
-    saveExitBtn.onclick = () => toggleNote(true);
-
-    // [ PURGE ] Logic (Ctrl + Shift + Click only)
-    purgeBtn.onclick = (e) => {
-        if (e.ctrlKey && e.shiftKey) {
-            textArea.value = '';
-            GM_setValue(storageKey, '');
-            purgeBtn.innerText = '[ INCINERATED ]';
-            purgeBtn.style.color = '#ff4444';
-            setTimeout(() => {
-                purgeBtn.innerText = '[ PURGE ]';
-                purgeBtn.style.color = '#d4af37';
-            }, 1500);
-        } else {
-            purgeBtn.animate([
-                { transform: 'translateX(-3px)' },
-                { transform: 'translateX(3px)' },
-                { transform: 'translateX(0)' }
-            ], { duration: 100, iterations: 3 });
-        }
-    };
-
-    // ═══════════════════════════════════════════════════════════
-    // TOKEN MANAGER  (2 tabs: KV token | GitHub PAT)
-    // ═══════════════════════════════════════════════════════════
-    const TM_LS_KEY   = 'kv_bearer_token';
-    const TM_POS_KEY  = 'hacker_tv_pos';
-    const GHN_PAT_KEY = 'hgn_gh_pat';        // shared via localStorage với Shibar & HDB
-    const TM_GH_FOLDER = 'https://api.github.com/repos/tasuaongvang/spx/contents/tofu';
-    const TM_PASS  = 'ong-vang-2018';
-    const TM_SALT  = new Uint8Array([79,110,103,86,97,110,103,50,48,49,56,33,7,19,3,11]);
-    // ── Cashbook token backup (kov repo) ─────────────────────
-    const CB_PASS      = 'ongvang!2018';
-    const CB_SALT      = new Uint8Array([111,110,103,118,97,110,103,50,48,49,56,13,7,23,41,3]);
-    const CB_TOKEN_API = 'https://api.github.com/repos/tasuaongvang/kov/contents/cashbook/keys.enc';
-    const CB_SHA_KEY         = 'cb_token_sha';      // GM storage cache
-    const CB_LAST_BACKUP_KEY = 'cb_last_backup';    // GM: { ts, fingerprint, sha }
-
-    // ── Crypto (AES-GCM) ─────────────────────────────────────
-    let _cachedCryptoKey = null;
-    async function tmDeriveKey() {
-        if (_cachedCryptoKey) { return _cachedCryptoKey; }
-        const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(TM_PASS), 'PBKDF2', false, ['deriveKey']);
-        _cachedCryptoKey = await crypto.subtle.deriveKey({ name:'PBKDF2', salt:TM_SALT, iterations:100000, hash:'SHA-256' },
-            km, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
-        return _cachedCryptoKey;
-    }
-    async function tmEncrypt(plain) {
-        const key = await tmDeriveKey();
-        const iv  = crypto.getRandomValues(new Uint8Array(12));
-        const ct  = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(plain));
-        const buf = new Uint8Array(12 + ct.byteLength);
-        buf.set(iv, 0); buf.set(new Uint8Array(ct), 12);
-        return btoa(String.fromCharCode(...buf));
-    }
-
-    // ── Cashbook crypto (key: ongvang!2018) ───────────
-    let _cbCryptoKey = null;
-    async function cbDeriveKey() {
-        if (_cbCryptoKey) { return _cbCryptoKey; }
-        const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(CB_PASS), 'PBKDF2', false, ['deriveKey']);
-        _cbCryptoKey = await crypto.subtle.deriveKey({ name:'PBKDF2', salt:CB_SALT, iterations:100000, hash:'SHA-256' },
-            km, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
-        return _cbCryptoKey;
-    }
-    async function cbEncrypt(plain) {
-        const key = await cbDeriveKey();
-        const iv  = crypto.getRandomValues(new Uint8Array(12));
-        const ct  = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, new TextEncoder().encode(plain));
-        const buf = new Uint8Array(12 + ct.byteLength);
-        buf.set(iv, 0); buf.set(new Uint8Array(ct), 12);
-        return btoa(String.fromCharCode(...buf));
-    }
-
-    // ── Auto-backup token+PAT to kov/cashbook/keys.enc ──────
-    let _cbLastBackup = GM_getValue(CB_LAST_BACKUP_KEY, null);
-    let _cbStatus = { state: 'idle', msg: '—', ts: null }; // for CB tab display
-
-    function shouldBackupToken(tok) {
-        if (!_cbLastBackup) { return true; }
-        if (tok.slice(-24) !== _cbLastBackup.fingerprint) { return true; }
-        const jwt = tmDecodeJWT(tok);
-        if (jwt && jwt.exp) {
-            const daysLeft = (jwt.exp * 1000 - Date.now()) / 86400000;
-            if (daysLeft < 2) { return true; }
-        }
-        return false;
-    }
-
-    let _cbBackupTimer = null;
-    function scheduleTokenBackupToCashbook(token) {
-        clearTimeout(_cbBackupTimer);
-        _cbBackupTimer = setTimeout(() => doTokenBackupToCashbook(token), 3000);
-    }
-    function doTokenBackupToCashbook(token) {
-        const pat = localStorage.getItem(GHN_PAT_KEY) || '';
-        if (!pat || !token) { return; }
-        if (!shouldBackupToken(token)) {
-            _cbStatus = { state: 'skip', msg: 'Token không đổi & còn hạn dài — bỏ qua', ts: Date.now() };
-            return;
-        }
-        const payload = JSON.stringify({ token, pat, ts: Date.now() });
-        _cbStatus = { state: 'pending', msg: 'Đang mã hóa & upload…', ts: Date.now() };
-        cbEncrypt(payload).then(cipher => {
-            const sha = GM_getValue(CB_SHA_KEY, null);
-            const body = { message: 'kv token auto-backup', content: cipher };
-            if (sha) { body.sha = sha; }
-            GM_xmlhttpRequest({
-                method: 'PUT', url: CB_TOKEN_API,
-                headers: {
-                    'Authorization': 'Bearer ' + pat,
-                    'Accept': 'application/vnd.github+json',
-                    'Content-Type': 'application/json',
-                    'X-GitHub-Api-Version': '2022-11-28',
-                },
-                data: JSON.stringify(body),
-                onload(res) {
-                    if (res.status === 200 || res.status === 201) {
-                        try {
-                            const newSha = JSON.parse(res.responseText).content.sha;
-                            GM_setValue(CB_SHA_KEY, newSha);
-                            _cbLastBackup = { ts: Date.now(), fingerprint: token.slice(-24), sha: newSha };
-                            GM_setValue(CB_LAST_BACKUP_KEY, _cbLastBackup);
-                            _cbStatus = { state: 'ok', msg: `✓ Backup thành công (sha: ${newSha.slice(0,8)}…)`, ts: Date.now() };
-                        } catch(e) {}
-                    } else if (res.status === 409 || res.status === 422) {
-                        GM_setValue(CB_SHA_KEY, null);
-                        GM_xmlhttpRequest({
-                            method: 'GET', url: CB_TOKEN_API,
-                            headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
-                            onload(r2) {
-                                try {
-                                    const freshSha = JSON.parse(r2.responseText).sha;
-                                    if (freshSha) { GM_setValue(CB_SHA_KEY, freshSha); doTokenBackupToCashbook(token); }
-                                } catch(e) {}
-                            },
-                        });
-                    } else {
-                        _cbStatus = { state: 'err', msg: `✗ Lỗi HTTP ${res.status}`, ts: Date.now() };
-                    }
-                },
-                onerror() {
-                    _cbStatus = { state: 'err', msg: '✗ Network error', ts: Date.now() };
-                },
-            });
-        });
-    }
-
-    // ── Scheduled backup: 15:00–15:30 window ─────────────────
-    setInterval(() => {
-        const now = new Date();
-        if (now.getHours() !== 15 || now.getMinutes() >= 30) { return; }
-        const tok = _srcAngular || _srcXHR || localStorage.getItem(TM_LS_KEY);
-        if (tok) { doTokenBackupToCashbook(tok); }
-    }, 60000);
-
-    // ── Token sources (captured live, only on KV) ────────────
-    let _srcXHR     = null;  // from XHR / fetch intercept
-    let _srcAngular = null;  // from Angular $http poll
-
-    function tmSave(v) {
-        if (!v?.startsWith('Bearer ')) { return; }
-        localStorage.setItem(TM_LS_KEY, v);
-        window.dispatchEvent(new CustomEvent('kv-token-ready', { detail: v }));
-        scheduleTokenBackupToCashbook(v);
-    }
-
-    // XHR intercept
-    try {
-        const origSet = window.XMLHttpRequest.prototype.setRequestHeader;
-        window.XMLHttpRequest.prototype.setRequestHeader = function(n, v) {
-            if (n.toLowerCase() === 'authorization' && v?.startsWith('Bearer ')) {
-                if (_srcXHR !== v) { _srcXHR = v; tmSave(v); }
-            }
-            return origSet.apply(this, arguments);
-        };
-    } catch(e) {}
-    // fetch intercept
-    try {
-        const origFetch = window.fetch;
-        window.fetch = function(...a) {
-            try {
-                const h = a[1]?.headers || {};
-                const auth = h['Authorization'] || h['authorization'];
-                if (auth?.startsWith('Bearer ') && _srcXHR !== auth) { _srcXHR = auth; tmSave(auth); }
-            } catch(e) {}
-            return origFetch.apply(this, a);
-        };
-    } catch(e) {}
-    // Angular $http poll — must use unsafeWindow (sandbox window has no angular)
-    let _pc = 0;
-    const _pt = setInterval(() => {
-        _pc++;
-        try {
-            const auth = unsafeWindow.angular?.element(document.body)?.injector()
-                ?.get?.('$http')?.defaults?.headers?.common?.Authorization;
-            if (auth?.startsWith('Bearer ')) {
-                _srcAngular = auth;
-                tmSave(auth);
-                clearInterval(_pt); return;
-            }
-        } catch(e) {}
-        if (_pc >= 30) { clearInterval(_pt); }
-    }, 2000);
-
-    // ── JWT decode ────────────────────────────────────────────
-    const tmDecodeJWT = (raw) => {
-        try {
-            const t = raw.replace(/^Bearer\s+/i, '').split('.');
-            if (t.length !== 3) { return null; }
-            const pad = s => s + '='.repeat((4 - s.length % 4) % 4);
-            return JSON.parse(atob(pad(t[1].replace(/-/g,'+').replace(/_/g,'/'))));
-        } catch(e) { return null; }
-    };
-
-    // ── Panel DOM ─────────────────────────────────────────────
-    const savedTvPos = GM_getValue(TM_POS_KEY, { top: '60px', left: '60px' });
-    const tvCont      = document.createElement('div');
-    const tvMain      = document.createElement('div');
-    const tvTitle     = document.createElement('div');
-    const tvBody      = document.createElement('div');
-    const tvBtns      = document.createElement('div');
-    const tvTabStrip  = document.createElement('div');  // LEFT tab strip
-    const tabKVEl     = document.createElement('div');
-    const tabGHEl     = document.createElement('div');
-    const tabBKEl     = document.createElement('div');
-    const tabCBEl     = document.createElement('div');
-
-    let _tvActiveTab  = 'bk'; // 'bk' | 'kv' | 'gh' | 'cb'
-
-    // ── Outer container ──────────────────────────────────────
-    Object.assign(tvCont.style, {
-        display: 'none', position: 'fixed',
-        top: savedTvPos.top, left: savedTvPos.left,
-        width: '820px',
-        background: '#f0f4f8',
-        borderRadius: '12px',
-        boxShadow: '0 6px 32px rgba(0,0,0,0.28)',
-        zIndex: '2147483647',
-        fontFamily: '"Segoe UI", Arial, sans-serif',
-        boxSizing: 'border-box', userSelect: 'none',
-        flexDirection: 'row', overflow: 'hidden',
-    });
-    tvCont.style.display = 'none';
-    tvCont.addEventListener('contextmenu', e => e.preventDefault());
-
-    // ── Left: tab strip ──────────────────────────────────────
-    Object.assign(tvTabStrip.style, {
-        width: '56px', display: 'flex', flexDirection: 'column',
-        background: '#1a237e', flexShrink: '0',
-    });
-
-    const _styleTab = (el, label, active) => {
-        el.innerText = label;
-        Object.assign(el.style, {
-            flex: '1', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            writingMode: 'vertical-rl', textOrientation: 'mixed',
-            cursor: 'pointer', fontSize: '13px', fontWeight: '700',
-            letterSpacing: '3px', userSelect: 'none',
-            color:      active ? '#1a237e' : '#90a4d4',
-            background: active ? '#fff' : 'transparent',
-            transition: 'all 0.15s',
-            borderLeft: active ? '4px solid #ffb300' : '4px solid transparent',
-        });
-    };
-
-    _styleTab(tabBKEl, 'ZC', true);
-    _styleTab(tabKVEl, 'KT', false);
-    _styleTab(tabGHEl, 'GT', false);
-    _styleTab(tabCBEl, 'Kash', false);
-
-    const _divTab  = document.createElement('div');
-    const _divTab2 = document.createElement('div');
-    const _divTab3 = document.createElement('div');
-    _divTab.style.cssText  = 'height:1px;background:rgba(255,255,255,0.08);';
-    _divTab2.style.cssText = 'height:1px;background:rgba(255,255,255,0.08);';
-    _divTab3.style.cssText = 'height:1px;background:rgba(255,255,255,0.08);';
-    tvTabStrip.append(tabBKEl, _divTab, tabKVEl, _divTab2, tabGHEl, _divTab3, tabCBEl);
-
-    // ── Right: main area ─────────────────────────────────────
-    Object.assign(tvMain.style, {
-        flex: '1', display: 'flex', flexDirection: 'column', minWidth: '0',
-    });
-
-    // Title bar (drag handle)
-    Object.assign(tvTitle.style, {
-        background: '#1565c0',
-        color: '#fff', fontWeight: '700', fontSize: '15px',
-        padding: '13px 16px',
-        cursor: 'move', userSelect: 'none',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexShrink: '0',
-    });
-    tvTitle.innerText = '⚿ TOKEN MANAGER';
-
-    // Body
-    Object.assign(tvBody.style, {
-        background: '#fff',
-        padding: '0',
-        overflowY: 'auto',
-        maxHeight: '480px',
-        flex: '1',
-        fontSize: '14px',
-        color: '#1a1a2e',
-        lineHeight: '1.75',
-        fontFamily: '"Segoe UI", Arial, sans-serif',
-        boxSizing: 'border-box',
-    });
-    tvBody.innerText = 'đang capture token…';
-
-    // Button row
-    Object.assign(tvBtns.style, {
-        display: 'flex', gap: '8px', padding: '12px 16px',
-        background: '#f0f4f8', borderTop: '1px solid #dde3ec',
-        flexShrink: '0',
-    });
-
-    tvMain.append(tvTitle, tvBody, tvBtns);
-    tvCont.append(tvTabStrip, tvMain);
-    document.body.appendChild(tvCont);
-
-    // Dragging
-    let tvDrag = false, tvOx, tvOy;
-    tvTitle.onmousedown = (e) => { tvDrag = true; const r = tvCont.getBoundingClientRect(); tvOx = e.clientX - r.left; tvOy = e.clientY - r.top; };
-    window.addEventListener('mousemove', (e) => { if (tvDrag) { tvCont.style.left = (e.clientX - tvOx) + 'px'; tvCont.style.top = (e.clientY - tvOy) + 'px'; } });
-    window.addEventListener('mouseup', () => { if (tvDrag) { tvDrag = false; GM_setValue(TM_POS_KEY, { top: tvCont.style.top, left: tvCont.style.left }); } });
-
-    // ── Token Manager button style (light theme) ──────────────
-    const styleTvBtn = (btn, text, variant) => {
-        btn.innerText = text;
-        const colors = {
-            primary:  { bg: '#1565c0', color: '#fff', hover: '#1976d2' },
-            success:  { bg: '#2e7d32', color: '#fff', hover: '#388e3c' },
-            danger:   { bg: '#c62828', color: '#fff', hover: '#d32f2f' },
-            neutral:  { bg: '#eceff1', color: '#37474f', hover: '#cfd8dc' },
-        };
-        const c = colors[variant || 'neutral'];
-        Object.assign(btn.style, {
-            background: c.bg, color: c.color, border: 'none',
-            borderRadius: '6px', padding: '8px 16px', cursor: 'pointer',
-            fontFamily: '"Segoe UI", Arial, sans-serif', fontWeight: '600',
-            fontSize: '13px', outline: 'none', whiteSpace: 'nowrap',
-            transition: 'background 0.15s',
-        });
-        btn.onmouseover = () => btn.style.background = c.hover;
-        btn.onmouseout  = () => btn.style.background = c.bg;
-        btn.onmousedown = (e) => e.stopPropagation();
-    };
-
-    // ── UI helpers ────────────────────────────────────────────
-    const tvMakeRow = (label, fullValue, opts = {}) => {
-        const wrap = document.createElement('div');
-        Object.assign(wrap.style, {
-            display: 'flex', alignItems: 'flex-start', gap: '10px',
-            padding: '9px 16px', borderBottom: '1px solid #eef1f6',
-            cursor: 'pointer', transition: 'background 0.1s',
-        });
-        wrap.onmouseover = () => wrap.style.background = '#e8f0fe';
-        wrap.onmouseout  = () => wrap.style.background = 'transparent';
-        wrap.onclick = (e) => {
-            e.stopPropagation();
-            GM_setClipboard(String(fullValue));
-            wrap.style.background = '#c8e6c9';
-            setTimeout(() => wrap.style.background = 'transparent', 400);
-        };
-        const lbl = document.createElement('span');
-        lbl.style.cssText = 'color:#5c6bc0;font-size:12px;font-weight:600;min-width:110px;flex-shrink:0;padding-top:2px;text-transform:uppercase;letter-spacing:0.5px;';
-        lbl.innerText = label;
-        const val = document.createElement('span');
-        val.style.cssText = 'color:#1a1a2e;font-size:14px;word-break:break-all;line-height:1.6;font-family:Consolas,monospace;';
-        const str = String(fullValue);
-        const LIMIT = 200;
-        if (opts.expandable && str.length > LIMIT) {
-            val.innerText = str.slice(0, LIMIT) + '…';
-            const xBtn = document.createElement('span');
-            xBtn.style.cssText = 'color:#1565c0;cursor:pointer;font-size:12px;margin-left:6px;';
-            xBtn.innerText = '[+]';
-            let open = false;
-            xBtn.onclick = (e) => { e.stopPropagation(); open = !open; val.innerText = open ? str : str.slice(0, LIMIT) + '…'; xBtn.innerText = open ? '[-]' : '[+]'; };
-            wrap.append(lbl, val, xBtn);
-        } else { val.innerText = str; wrap.append(lbl, val); }
-        if (opts.color) { val.style.color = opts.color; }
-        if (opts.dim) { val.style.color = '#aaa'; }
-        return wrap;
-    };
-
-    const tvHR = () => {
-        const h = document.createElement('div');
-        h.style.cssText = 'height:6px;background:#f0f4f8;';
-        return h;
-    };
-
-    const tvSec = (t, note) => {
-        const d = document.createElement('div');
-        d.style.cssText = 'padding:10px 16px 4px;font-size:11px;font-weight:700;color:#1565c0;letter-spacing:1.5px;text-transform:uppercase;background:#f7f9ff;border-bottom:1px solid #eef1f6;';
-        d.innerText = t;
-        if (note) {
-            const n = document.createElement('span');
-            n.style.cssText = 'color:#888;font-size:10px;margin-left:8px;letter-spacing:0;text-transform:none;font-weight:400;';
-            n.innerText = note;
-            d.appendChild(n);
-        }
-        return d;
-    };
-
-    // ── KV tab — build display ────────────────────────────────
-    const tvBackup       = document.createElement('button');
-    const tvFetch        = document.createElement('button');
-    const tvClose        = document.createElement('button');
-    const tvBkShowAll    = document.createElement('button');
-    const tvBkSave       = document.createElement('button');
-    const tvCbBackupNow  = document.createElement('button');
-    styleTvBtn(tvBackup, '☁ Backup Token', 'primary');
-    styleTvBtn(tvFetch,  '↺ Refresh',       'neutral');
-    styleTvBtn(tvClose,  '✕ Đóng',          'neutral');
-    styleTvBtn(tvCbBackupNow, '↑ Backup', 'primary');
-    tvCbBackupNow.onclick = (e) => {
-        // nút bị lock (token đã khớp) → chỉ cho phép khi giữ Shift
-        if (tvCbBackupNow._locked && !e.shiftKey) {
-            tvCbBackupNow.animate([
-                { transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'translateX(0)' }
-            ], { duration: 80, iterations: 3 });
-            return;
-        }
-        const tok = _srcAngular || _srcXHR || localStorage.getItem(TM_LS_KEY);
-        if (!tok) { return; }
-        // force: temporarily clear fingerprint so shouldBackupToken returns true
-        const saved = _cbLastBackup;
-        _cbLastBackup = null;
-        doTokenBackupToCashbook(tok);
-        _cbLastBackup = saved;
-        setTimeout(() => buildCB(), 1500);
-    };
-
-    // ── CB tab — Cashbook backup dashboard ───────────────────
-    const buildCB = () => {
-        tvBody.innerHTML = '';
-        tvBody.style.userSelect = 'none';
-
-        const tok = _srcAngular || _srcXHR || localStorage.getItem(TM_LS_KEY);
-        const jwt = tok ? tmDecodeJWT(tok) : null;
-
-        // helper: section header
-        const cbSec = (t) => {
-            const d = document.createElement('div');
-            d.style.cssText = 'padding:10px 16px 4px;font-size:11px;font-weight:700;color:#00695c;letter-spacing:1.5px;text-transform:uppercase;background:#f0fafa;border-bottom:1px solid #b2dfdb;';
-            d.innerText = t;
-            return d;
-        };
-        // helper: info row
-        const cbRow = (label, value, color) => {
-            const d = document.createElement('div');
-            d.style.cssText = 'display:flex;align-items:baseline;gap:10px;padding:8px 16px;border-bottom:1px solid #eef1f6;';
-            const l = document.createElement('span');
-            l.style.cssText = 'color:#5c6bc0;font-size:12px;font-weight:600;min-width:130px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.5px;';
-            l.innerText = label;
-            const v = document.createElement('span');
-            v.style.cssText = `color:${color||'#1a1a2e'};font-size:13px;font-family:Consolas,monospace;word-break:break-all;`;
-            v.innerText = value;
-            d.append(l, v);
-            return d;
-        };
-        const fmtTs = (ts) => ts ? new Date(ts).toLocaleString('vi-VN') : '—';
-
-        // ── TOKEN section ──
-        tvBody.appendChild(cbSec('KV TOKEN'));
-        if (!tok) {
-            tvBody.appendChild(cbRow('Trạng thái', 'Chưa capture được token', '#c62828'));
-        } else {
-            const pat = localStorage.getItem(GHN_PAT_KEY);
-            tvBody.appendChild(cbRow('PAT', pat ? `✓ đã có (${pat.slice(0,8)}…)` : '✗ Chưa có PAT — vào tab GT', pat ? '#2e7d32' : '#c62828'));
-            tvBody.appendChild(cbRow('Source', _srcAngular ? 'Angular $http ✓' : _srcXHR ? 'XHR/fetch' : 'localStorage', _srcAngular ? '#2e7d32' : '#e65100'));
-            if (jwt) {
-                const exp = jwt.exp ? new Date(jwt.exp * 1000).toLocaleString('vi-VN') : '—';
-                const daysLeft = jwt.exp ? Math.ceil((jwt.exp * 1000 - Date.now()) / 86400000) : null;
-                const dayColor = !daysLeft ? '#888' : daysLeft <= 3 ? '#c62828' : daysLeft <= 7 ? '#e65100' : '#2e7d32';
-                tvBody.appendChild(cbRow('Hết hạn', exp, '#1a1a2e'));
-                tvBody.appendChild(cbRow('Còn lại', daysLeft !== null ? `${daysLeft} ngày` : '—', dayColor));
-                if (jwt.name || jwt.given_name) { tvBody.appendChild(cbRow('User', jwt.name || jwt.given_name, '#1565c0')); }
-            }
-        }
-
-        // ── BACKUP section ──
-        tvBody.appendChild(tvHR());
-        tvBody.appendChild(cbSec('BACKUP STATUS'));
-        const lb = _cbLastBackup;
-        const curFp = tok ? tok.slice(-24) : null;
-        const match = !!(curFp && lb && lb.fingerprint === curFp);
-        if (!lb) {
-            tvBody.appendChild(cbRow('Lần cuối', 'Chưa backup lần nào', '#888'));
-        } else {
-            tvBody.appendChild(cbRow('Lần cuối', fmtTs(lb.ts), '#1a1a2e'));
-            tvBody.appendChild(cbRow('SHA', lb.sha ? lb.sha.slice(0,16) + '…' : '—', '#5c6bc0'));
-            tvBody.appendChild(cbRow('Token khớp', match ? '✓ token hiện tại = token đã backup' : '⚠ token đã thay đổi, chưa re-backup', match ? '#2e7d32' : '#e65100'));
-        }
-        const stateColor = { ok: '#2e7d32', err: '#c62828', skip: '#888', pending: '#1565c0', idle: '#888' };
-        tvBody.appendChild(cbRow('Lần gần nhất', _cbStatus.ts ? `${_cbStatus.msg}  (${fmtTs(_cbStatus.ts)})` : _cbStatus.msg, stateColor[_cbStatus.state] || '#888'));
-        tvBody.appendChild(cbRow('File GH', 'kov/cashbook/keys.enc', '#5c6bc0'));
-
-        // lock nút backup khi token đã khớp — shift+click để force
-        tvCbBackupNow._locked = match;
-        tvCbBackupNow.disabled = false; // luôn clickable để shift-click hoạt động
-        Object.assign(tvCbBackupNow.style, {
-            opacity: match ? '0.38' : '1',
-            cursor: 'pointer',
-            pointerEvents: 'auto',
-        });
-        tvCbBackupNow.title = match ? 'Token đã khớp — giữ Shift để force backup' : '';
-
-        // ── SCHEDULE section ──
-        tvBody.appendChild(tvHR());
-        tvBody.appendChild(cbSec('LỊCH TỰ ĐỘNG'));
-        tvBody.appendChild(cbRow('Khung giờ', '15:00 → 15:30 mỗi ngày', '#1a1a2e'));
-        tvBody.appendChild(cbRow('Điều kiện skip', 'Token không đổi & còn hơn 2 ngày', '#888'));
-        const now = new Date();
-        const h = now.getHours(), m = now.getMinutes();
-        const inWindow = h === 15 && m < 30;
-        const minsToWindow = inWindow ? 0 : ((15 * 60 - (h * 60 + m) + 1440) % 1440);
-        const windowStr = inWindow ? '✓ Đang trong khung giờ' : `Còn ${Math.floor(minsToWindow/60)}h ${minsToWindow%60}m`;
-        tvBody.appendChild(cbRow('Trạng thái', windowStr, inWindow ? '#2e7d32' : '#888'));
-        tvBody.appendChild(cbRow('Trigger nhanh', 'Capture token → debounce 3s → check → backup', '#888'));
-    };
-
-    // BK tab module-level state
-    const BK_CACHE_KEY = 'bk_cache'; // GM storage: { lines: [...], sha: '...' }
-    const _bkCached = GM_getValue(BK_CACHE_KEY, null);
-    let _bkSha   = _bkCached?.sha || null;
-    let _bkLines = _bkCached?.lines || [];
-    let _bkMode  = 'search'; // 'search' | 'edit'
-    let _bkSearchEl = null;  // ref to search input for focus-on-open
-
-    function _bkSaveCache() {
-        GM_setValue(BK_CACHE_KEY, { lines: _bkLines, sha: _bkSha });
-    }
-
-    const buildTV = () => {
-        tvBody.innerHTML = '';
-        tvBody.style.userSelect = 'none';
-        const lsTok     = localStorage.getItem(TM_LS_KEY);
-        const bestToken = _srcAngular || _srcXHR || lsTok;
-
-        tvBody.appendChild(tvSec('TOKEN SOURCES', '— click any row to copy'));
-        const srcRows = [
-            ['xhr / fetch',  _srcXHR,     'live intercept — fallback nếu angular chưa capture'],
-            ['angular $http',_srcAngular,  'Angular header — ưu tiên dùng cho Shibar / HDB requests'],
-            ['localStorage', lsTok,        `key: ${TM_LS_KEY} — scripts đọc từ đây khi cần`],
-        ];
-        srcRows.forEach(([lbl, tok, hint]) => {
-            tvBody.appendChild(tvMakeRow(lbl, tok || '—  not captured', tok ? { expandable: true } : { dim: true }));
-            const hintEl = document.createElement('div');
-            hintEl.style.cssText = 'color:#90a4ae;font-size:11px;padding:0 16px 6px 136px;';
-            hintEl.innerText = hint;
-            tvBody.appendChild(hintEl);
-        });
-
-        const tokens = [_srcXHR, _srcAngular, lsTok].filter(Boolean);
-        const uniq = [...new Set(tokens)];
-        let statusColor, statusText;
-        if (tokens.length === 0)      { statusColor = '#c62828'; statusText = '⊘ chưa capture được token'; }
-        else if (tokens.length === 1) { statusColor = '#e65100'; statusText = '1/3 nguồn đã capture'; }
-        else if (uniq.length === 1)   { statusColor = '#2e7d32'; statusText = `✓ ${tokens.length}/3 — tất cả khớp`; }
-        else                          { statusColor = '#e65100'; statusText = `⚠ ${tokens.length} nguồn không khớp nhau — dùng angular`; }
-        const statusEl = document.createElement('div');
-        statusEl.style.cssText = `padding:8px 16px;font-size:13px;font-weight:600;color:${statusColor};background:#f7f9ff;border-top:1px solid #eef1f6;`;
-        statusEl.innerText = statusText;
-        tvBody.appendChild(statusEl);
-        tvBody.appendChild(tvHR());
-
-        if (bestToken) {
-            const jwt = tmDecodeJWT(bestToken);
-            if (jwt) {
-                tvBody.appendChild(tvSec('JWT INFO', '— token identity & validity'));
-                ['sub','unique_name','name','given_name','email','retailer','RetailerId','nbf','iat','exp'].forEach(k => {
-                    if (!(k in jwt)) { return; }
-                    let v = jwt[k];
-                    if (k === 'exp' || k === 'iat' || k === 'nbf') { v = new Date(v * 1000).toLocaleString('vi-VN'); }
-                    tvBody.appendChild(tvMakeRow(k, typeof v === 'object' ? JSON.stringify(v) : v));
-                });
-                if (jwt.exp) {
-                    const daysLeft = Math.ceil((jwt.exp * 1000 - Date.now()) / 86400000);
-                    const txt   = daysLeft <= 0 ? `EXPIRED` : `${daysLeft} ngày còn lại`;
-                    const color = daysLeft <= 0 ? '#c62828' : daysLeft <= 3 ? '#e65100' : '#2e7d32';
-                    tvBody.appendChild(tvMakeRow('days_left', txt, { color }));
-                }
-            } else {
-                tvBody.appendChild(tvSec('JWT INFO'));
-                tvBody.appendChild(tvMakeRow('format', 'opaque — not a JWT'));
-            }
-            tvBody.appendChild(tvHR());
-        }
-
-        // canvas fingerprint
-        const _cvFp = (() => {
-            try {
-                const cv = document.createElement('canvas');
-                cv.width = 200; cv.height = 40;
-                const ctx = cv.getContext('2d');
-                ctx.font = '14px Arial';
-                ctx.fillStyle = '#f60'; ctx.fillRect(10, 5, 50, 25);
-                ctx.fillStyle = '#069'; ctx.fillText('KV_FP\u2764\u03A9', 14, 22);
-                ctx.strokeStyle = '#9cf'; ctx.lineWidth = 1.5;
-                ctx.beginPath(); ctx.arc(160, 20, 14, 0, Math.PI * 2); ctx.stroke();
-                const raw = cv.toDataURL();
-                let h = 2166136261;
-                for (let i = 0; i < raw.length; i++) { h = Math.imul(h ^ raw.charCodeAt(i), 16777619); }
-                return (h >>> 0).toString(16).padStart(8, '0');
-            } catch(e) { return 'n/a'; }
-        })();
-        const _fpRaw = [
-            navigator.userAgent, navigator.platform,
-            `${screen.width}x${screen.height}`, screen.colorDepth,
-            navigator.hardwareConcurrency, navigator.deviceMemory || '?',
-            Intl.DateTimeFormat().resolvedOptions().timeZone,
-            navigator.languages?.join(',') || '',
-            _cvFp,
-        ].join('|');
-        const _fpHash = (() => {
-            let h = 2166136261;
-            for (let i = 0; i < _fpRaw.length; i++) { h = Math.imul(h ^ _fpRaw.charCodeAt(i), 16777619); }
-            return (h >>> 0).toString(16).padStart(8, '0');
-        })();
-
-        tvBody.appendChild(tvSec('MACHINE ID', '— so sánh mac vs windows'));
-        [
-            ['fingerprint',  _fpHash + '-' + _cvFp, { color: '#1565c0' }],
-            ['user_agent',   navigator.userAgent],
-            ['platform',     navigator.platform],
-            ['timezone',     Intl.DateTimeFormat().resolvedOptions().timeZone],
-            ['screen',       `${screen.width}×${screen.height} @${window.devicePixelRatio}x  depth:${screen.colorDepth}bit`],
-            ['cpu / mem',    `${navigator.hardwareConcurrency} cores  /  ${navigator.deviceMemory || '?'} GB`],
-            ['languages',    navigator.languages?.join(', ') || navigator.language],
-        ].forEach(([l, v, o]) => tvBody.appendChild(tvMakeRow(l, v, o || {})));
-
-        const ts = document.createElement('div');
-        ts.style.cssText = 'color:#aaa;font-size:11px;text-align:right;padding:8px 16px;';
-        ts.innerText = 'fetched: ' + new Date().toLocaleString('vi-VN');
-        tvBody.appendChild(ts);
-    };
-
-    // ── GH PAT tab — build display ────────────────────────────
-    const buildGH = () => {
-        tvBody.innerHTML = '';
-        tvBody.style.userSelect = 'text';
-
-        tvBody.appendChild(tvSec('GITHUB PAT MANAGER', '— dùng chung cho HDB backup & snapshot'));
-
-        const curPat = localStorage.getItem(GHN_PAT_KEY) || '';
-
-        if (curPat) {
-            const patRow = document.createElement('div');
-            patRow.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:10px 16px;border-bottom:1px solid #eef1f6;cursor:pointer;transition:background 0.1s;';
-            const patLbl = document.createElement('span');
-            patLbl.style.cssText = 'color:#5c6bc0;font-size:12px;font-weight:600;min-width:110px;flex-shrink:0;padding-top:2px;text-transform:uppercase;letter-spacing:0.5px;';
-            patLbl.innerText = 'PAT hiện tại';
-            const patVal = document.createElement('span');
-            patVal.style.cssText = 'color:#2e7d32;font-size:13px;font-family:Consolas,monospace;word-break:break-all;line-height:1.6;';
-            patVal.innerText = curPat;
-            patRow.append(patLbl, patVal);
-            patRow.title = 'click to copy';
-            patRow.onmouseover = () => patRow.style.background = '#e8f0fe';
-            patRow.onmouseout  = () => patRow.style.background = 'transparent';
-            patRow.onclick = (e) => { e.stopPropagation(); GM_setClipboard(curPat); patRow.style.background = '#c8e6c9'; setTimeout(() => patRow.style.background = 'transparent', 400); };
-            tvBody.appendChild(patRow);
-
-            const expiryEl = document.createElement('div');
-            expiryEl.style.cssText = 'padding:8px 16px;font-size:13px;color:#90a4ae;border-bottom:1px solid #eef1f6;';
-            expiryEl.innerText = 'Đang kiểm tra expiry…';
-            tvBody.appendChild(expiryEl);
-
-            GM_xmlhttpRequest({
-                method: 'GET', url: 'https://api.github.com/user',
-                headers: {
-                    'Authorization': 'Bearer ' + curPat,
-                    'Accept': 'application/vnd.github+json',
-                    'X-GitHub-Api-Version': '2022-11-28',
-                },
-                onload(res) {
-                    if (res.status === 401) {
-                        expiryEl.style.color = '#c62828';
-                        expiryEl.innerText = '⊘ Token invalid hoặc đã expire';
-                        return;
-                    }
-                    const expHeader = res.responseHeaders.match(/github-authentication-token-expiration:\s*(.+)/i);
-                    if (expHeader) {
-                        const expDate = new Date(expHeader[1].trim());
-                        const daysLeft = Math.ceil((expDate - Date.now()) / 86400000);
-                        const color = daysLeft <= 0 ? '#c62828' : daysLeft <= 7 ? '#e65100' : '#2e7d32';
-                        const txt   = daysLeft <= 0 ? 'ĐÃ HẾT HẠN' : `còn ${daysLeft} ngày  (${expDate.toLocaleDateString('vi-VN')})`;
-                        expiryEl.style.color = color;
-                        expiryEl.style.fontWeight = '600';
-                        expiryEl.innerText = `Expiry: ${txt}`;
-                    } else {
-                        expiryEl.style.color = '#90a4ae';
-                        expiryEl.innerText = 'Expiry: no-expiry token (hoặc không có header)';
-                    }
-                },
-                onerror() {
-                    expiryEl.style.color = '#90a4ae';
-                    expiryEl.innerText = 'Expiry: không check được (network err)';
-                },
-            });
-        } else {
-            const noPatEl = document.createElement('div');
-            noPatEl.style.cssText = 'padding:14px 16px;font-size:14px;color:#c62828;font-weight:600;';
-            noPatEl.innerText = '⊘ Chưa có PAT nào được lưu';
-            tvBody.appendChild(noPatEl);
-        }
-
-        tvBody.appendChild(tvHR());
-        tvBody.appendChild(tvSec('PASTE PAT MỚI'));
-
-        const inputWrap = document.createElement('div');
-        inputWrap.style.cssText = 'padding:12px 16px;';
-
-        const patInput = document.createElement('textarea');
-        Object.assign(patInput.style, {
-            width: '100%', height: '72px', background: '#f7f9ff',
-            color: '#1a1a2e', border: '1.5px solid #c5cae9',
-            borderRadius: '6px', padding: '10px 12px', boxSizing: 'border-box',
-            fontFamily: 'Consolas, monospace', fontSize: '13px',
-            resize: 'none', outline: 'none', display: 'block',
-            lineHeight: '1.6',
-        });
-        patInput.placeholder = 'github_pat_…';
-        patInput.spellcheck = false;
-        patInput.addEventListener('mousedown', e => e.stopPropagation());
-        patInput.addEventListener('click', e => e.stopPropagation());
-        patInput.onfocus = () => patInput.style.borderColor = '#1565c0';
-        patInput.onblur  = () => patInput.style.borderColor = '#c5cae9';
-        inputWrap.appendChild(patInput);
-        tvBody.appendChild(inputWrap);
-
-        const ghBtnsRow = document.createElement('div');
-        ghBtnsRow.style.cssText = 'display:flex;gap:8px;padding:0 16px 14px;';
-        const savePatBtn  = document.createElement('button');
-        const clearPatBtn = document.createElement('button');
-        styleTvBtn(savePatBtn,  '✓ Lưu PAT', 'success');
-        styleTvBtn(clearPatBtn, '✕ Xóa PAT', 'danger');
-
-        savePatBtn.onclick = () => {
-            const v = patInput.value.trim();
-            if (!v) { savePatBtn.innerText = '! Chưa nhập gì'; savePatBtn.style.background = '#c62828'; setTimeout(() => styleTvBtn(savePatBtn, '✓ Lưu PAT', 'success'), 1500); return; }
-            localStorage.setItem(GHN_PAT_KEY, v);
-            patInput.value = '';
-            savePatBtn.innerText = '✓ Đã lưu!';
-            setTimeout(() => { styleTvBtn(savePatBtn, '✓ Lưu PAT', 'success'); buildGH(); }, 1500);
-        };
-
-        clearPatBtn.onclick = () => {
-            localStorage.removeItem(GHN_PAT_KEY);
-            clearPatBtn.innerText = '✓ Đã xóa';
-            setTimeout(() => { styleTvBtn(clearPatBtn, '✕ Xóa PAT', 'danger'); buildGH(); }, 1500);
-        };
-
-        ghBtnsRow.append(savePatBtn, clearPatBtn);
-        tvBody.appendChild(ghBtnsRow);
-
-        tvBody.appendChild(tvHR());
-        const hint = document.createElement('div');
-        hint.style.cssText = 'padding:8px 16px 14px;color:#78909c;font-size:12px;line-height:1.9;';
-        hint.innerText = '→ PAT cần scope: repo (hoặc public_repo nếu repo public)\n→ Lưu tại localStorage["hgn_gh_pat"] — dùng chung Shibar POS & Hidden Debt Book\n→ Không sync GH — chỉ lưu local trên máy này';
-        tvBody.appendChild(hint);
-    };
-
-    // ── BK tab — bakist.txt editor ────────────────────────────
-    const BK_REPO_API = 'https://api.github.com/repos/tasuaongvang/kov/contents/bakist.txt';
-
-    const buildBK = () => {
-        tvBody.innerHTML = '';
-        tvBody.style.userSelect = 'text';
-        tvBody.style.padding = '0';
-
-        const curPat = localStorage.getItem(GHN_PAT_KEY) || '';
-        if (!curPat) {
-            const warn = document.createElement('div');
-            warn.style.cssText = 'padding:16px;font-size:14px;color:#c62828;font-weight:600;';
-            warn.innerText = '⊘ Chưa có PAT — vào tab GH để lưu PAT trước.';
-            tvBody.appendChild(warn);
-            return;
-        }
-
-        const statusEl = document.createElement('div');
-        statusEl.style.cssText = 'padding:8px 16px;font-size:12px;color:#90a4ae;background:#f7f9ff;border-bottom:1px solid #eef1f6;';
-        if (_bkLines.length) {
-            statusEl.style.color = '#2e7d32'; statusEl.style.fontWeight = '600';
-            statusEl.innerText = `⚡ ${_bkLines.length} dòng (cache)  — đang đồng bộ…`;
-        } else {
-            statusEl.innerText = 'Đang tải…';
-        }
-        tvBody.appendChild(statusEl);
-
-        const searchWrap = document.createElement('div');
-        searchWrap.style.cssText = 'display:block;';
-        const searchInput = document.createElement('input');
-        searchInput.type = 'text';
-        searchInput.placeholder = '🔍  Tìm kiếm…';
-        Object.assign(searchInput.style, {
-            width: '100%', boxSizing: 'border-box', padding: '12px 16px',
-            background: '#fff', color: '#1a1a2e',
-            border: 'none', borderBottom: '2px solid #e8eaf6',
-            fontFamily: '"Segoe UI", Arial, sans-serif', fontSize: '15px',
-            outline: 'none', display: 'block',
-        });
-        searchInput.onfocus = () => searchInput.style.borderBottomColor = '#1565c0';
-        searchInput.onblur  = () => searchInput.style.borderBottomColor = '#e8eaf6';
-        searchInput.addEventListener('mousedown', e => e.stopPropagation());
-        searchInput.addEventListener('click', e => e.stopPropagation());
-        _bkSearchEl = searchInput;
-
-        const resultsCont = document.createElement('div');
-        resultsCont.style.cssText = 'overflow-y:auto;max-height:360px;';
-        searchWrap.append(searchInput, resultsCont);
-        tvBody.appendChild(searchWrap);
-
-        const bkArea = document.createElement('textarea');
-        Object.assign(bkArea.style, {
-            display: 'none', width: '100%', height: '370px',
-            boxSizing: 'border-box', background: '#f7f9ff',
-            color: '#1a1a2e', border: 'none', borderTop: '2px solid #e8eaf6',
-            padding: '12px 16px', fontFamily: 'Consolas, monospace',
-            fontSize: '14px', lineHeight: '1.8', resize: 'none', outline: 'none',
-        });
-        bkArea.spellcheck = false;
-        bkArea.addEventListener('mousedown', e => e.stopPropagation());
-        bkArea.addEventListener('click', e => e.stopPropagation());
-        tvBody.appendChild(bkArea);
-
-        const renderResults = (q) => {
-            resultsCont.innerHTML = '';
-            const lq = q.toLowerCase();
-            const filtered = q ? _bkLines.filter(l => l.toLowerCase().includes(lq)) : _bkLines;
-            if (filtered.length === 0) {
-                const empty = document.createElement('div');
-                empty.style.cssText = 'padding:24px 16px;color:#90a4ae;font-size:14px;';
-                empty.innerText = q ? 'Không có kết quả' : '(Chưa có dữ liệu)';
-                resultsCont.appendChild(empty);
-                return;
-            }
-            filtered.forEach((line, i) => {
-                const row = document.createElement('div');
-                const baseBg = i % 2 === 0 ? '#fff' : '#f7f9ff';
-                row.style.cssText = `padding:11px 16px;font-size:15px;font-family:"Segoe UI",Arial,sans-serif;`
-                    + `color:#1a1a2e;background:${baseBg};cursor:pointer;user-select:none;`
-                    + `border-bottom:1px solid #eef1f6;line-height:1.65;`;
-                row.innerText = line;
-                row.onmouseover = () => row.style.background = '#e8f0fe';
-                row.onmouseout  = () => row.style.background = baseBg;
-                let _clickTimer = null;
-                row.onclick = (e) => {
-                    e.stopPropagation();
-                    clearTimeout(_clickTimer);
-                    _clickTimer = setTimeout(() => {
-                        const firstSeg = line.split('|')[0].trim();
-                        GM_setClipboard(firstSeg);
-                        row.style.background = '#c8e6c9';
-                        setTimeout(() => { row.style.background = baseBg; }, 450);
-                    }, 220);
-                };
-                row.ondblclick = (e) => {
-                    e.stopPropagation();
-                    clearTimeout(_clickTimer);
-                    GM_setClipboard(line);
-                    row.style.background = '#bbdefb';
-                    setTimeout(() => { row.style.background = baseBg; }, 450);
-                };
-                resultsCont.appendChild(row);
-            });
-        };
-
-        searchInput.oninput = () => renderResults(searchInput.value);
-
-        // Render cached data immediately — zero wait
-        if (_bkLines.length) { renderResults(''); }
-
-        styleTvBtn(tvBkShowAll, '≡ View/Edit', 'primary');
-        tvBkShowAll.onclick = () => {
-            if (_bkMode === 'search') {
-                _bkMode = 'edit';
-                searchWrap.style.display = 'none';
-                bkArea.style.display = 'block';
-                bkArea.value = '\n' + _bkLines.join('\n');
-                bkArea.setSelectionRange(0, 0);
-                bkArea.focus();
-                styleTvBtn(tvBkShowAll, '← Search', 'neutral');
-            } else {
-                _bkMode = 'search';
-                bkArea.style.display = 'none';
-                searchWrap.style.display = 'block';
-                _bkLines = bkArea.value.split('\n').filter(l => l.trim());
-                _bkSaveCache();
-                renderResults(searchInput.value);
-                styleTvBtn(tvBkShowAll, '≡ View/Edit', 'primary');
-            }
-        };
-
-        styleTvBtn(tvBkSave, '↑ Lưu lên GH', 'success');
-        tvBkSave.onclick = () => {
-            if (!_bkSha) {
-                tvBkSave.innerText = 'Load trước!'; tvBkSave.style.background = '#c62828';
-                setTimeout(() => styleTvBtn(tvBkSave, '↑ Lưu lên GH', 'success'), 1500);
-                return;
-            }
-            const text = _bkMode === 'edit' ? bkArea.value : _bkLines.join('\n');
-            const encoded = btoa(unescape(encodeURIComponent(text)));
-            tvBkSave.innerText = '…';
-            GM_xmlhttpRequest({
-                method: 'PUT', url: BK_REPO_API,
-                headers: {
-                    'Authorization': 'Bearer ' + curPat,
-                    'Accept': 'application/vnd.github+json',
-                    'Content-Type': 'application/json',
-                    'X-GitHub-Api-Version': '2022-11-28',
-                },
-                data: JSON.stringify({ message: 'update bakist.txt', content: encoded, sha: _bkSha }),
-                onload(res) {
-                    if (res.status === 200 || res.status === 201) {
-                        try { _bkSha = JSON.parse(res.responseText).content.sha; } catch(e) {}
-                        _bkSaveCache();
-                        tvBkSave.innerText = '✓ Đã lưu!';
-                        statusEl.style.color = '#2e7d32'; statusEl.style.fontWeight = '600';
-                        statusEl.innerText = `✓ Đã lưu  (sha: ${(_bkSha||'').slice(0,8)}…)`;
-                    } else {
-                        tvBkSave.innerText = `✗ Lỗi ${res.status}`; tvBkSave.style.background = '#c62828';
-                    }
-                    setTimeout(() => styleTvBtn(tvBkSave, '↑ Lưu lên GH', 'success'), 2000);
-                },
-                onerror() {
-                    tvBkSave.innerText = '✗ Network lỗi'; tvBkSave.style.background = '#c62828';
-                    setTimeout(() => styleTvBtn(tvBkSave, '↑ Lưu lên GH', 'success'), 2000);
-                },
-            });
-        };
-
-        GM_xmlhttpRequest({
-            method: 'GET', url: BK_REPO_API,
-            headers: {
-                'Authorization': 'Bearer ' + curPat,
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28',
-            },
-            onload(res) {
-                try {
-                    const json = JSON.parse(res.responseText);
-                    const newSha = json.sha;
-                    const text = decodeURIComponent(escape(atob(json.content.replace(/\n/g, ''))));
-                    const newLines = text.split('\n').filter(l => l.trim());
-                    const changed = newSha !== _bkSha;
-                    _bkSha = newSha;
-                    _bkLines = newLines;
-                    _bkSaveCache();
-                    statusEl.style.color = '#2e7d32'; statusEl.style.fontWeight = '600';
-                    statusEl.innerText = `✓ ${_bkLines.length} dòng  (sha: ${(_bkSha||'').slice(0,8)}…)`;
-                    if (changed && _bkMode === 'search') { renderResults(searchInput.value); }
-                } catch(e) {
-                    statusEl.style.color = '#c62828';
-                    statusEl.innerText = '✗ Parse error: ' + e.message;
-                }
-            },
-            onerror() {
-                if (_bkLines.length) {
-                    statusEl.style.color = '#e65100'; statusEl.style.fontWeight = '600';
-                    statusEl.innerText = `⚡ ${_bkLines.length} dòng (offline cache)`;
-                } else {
-                    statusEl.style.color = '#c62828';
-                    statusEl.innerText = '✗ Network error';
-                }
-            },
-        });
-    };
-
-    // ── Tab switching ─────────────────────────────────────────
-    const _kvBtns = [tvBackup, tvFetch, tvClose];
-
-    const switchTab = (tab) => {
-        _tvActiveTab = tab;
-        _styleTab(tabBKEl, 'ZC', tab === 'bk');
-        _styleTab(tabKVEl, 'KT', tab === 'kv');
-        _styleTab(tabGHEl, 'GT', tab === 'gh');
-        _styleTab(tabCBEl, 'Kash', tab === 'cb');
-        tvBtns.innerHTML = '';
-        if (tab === 'kv') {
-            tvTitle.innerText = '⚿ Kitoken';
-            _kvBtns.forEach(b => tvBtns.appendChild(b));
-            buildTV();
-        } else if (tab === 'gh') {
-            tvTitle.innerText = '⚿ Gitoken';
-            tvBtns.appendChild(tvClose);
-            buildGH();
-        } else if (tab === 'cb') {
-            tvTitle.innerText = '☁ Kashbook';
-            tvBtns.appendChild(tvCbBackupNow);
-            tvBtns.appendChild(tvClose);
-            buildCB();
-        } else {
-            tvTitle.innerText = '⚿ Zacoba';
-            tvBtns.appendChild(tvBkShowAll);
-            tvBtns.appendChild(tvBkSave);
-            tvBtns.appendChild(tvClose);
-            buildBK();
-            if (_bkSearchEl) { setTimeout(() => _bkSearchEl.focus(), 50); }
-        }
-    };
-
-    tabKVEl.onclick = () => switchTab('kv');
-    tabGHEl.onclick = () => switchTab('gh');
-    tabBKEl.onclick = () => switchTab('bk');
-    tabCBEl.onclick = () => switchTab('cb');
-
-    // ── KV buttons ────────────────────────────────────────────
-    styleTvBtn(tvFetch,  '↺ Refresh',      'neutral');
-    styleTvBtn(tvClose,  '✕ Đóng',         'neutral');
-    _kvBtns.forEach(b => tvBtns.appendChild(b));
-
-    tvFetch.onclick = buildTV;
-    tvClose.onclick = () => { tvCont.style.display = 'none'; };
-
-    tvBackup.onclick = () => {
-        const tok = _srcAngular || _srcXHR || localStorage.getItem(TM_LS_KEY);
-        if (!tok) {
-            tvBackup.innerText = '! Chưa có token'; tvBackup.style.background = '#c62828';
-            setTimeout(() => styleTvBtn(tvBackup, '☁ Backup Token', 'primary'), 2000);
-            return;
-        }
-        const ghPat = localStorage.getItem(GHN_PAT_KEY) || '';
-        if (!ghPat) {
-            tvBackup.innerText = '! Cần PAT → tab GH'; tvBackup.style.background = '#c62828';
-            setTimeout(() => { styleTvBtn(tvBackup, '☁ Backup Token', 'primary'); switchTab('gh'); }, 1500);
-            return;
-        }
-        tvBackup.innerText = '…';
-        tmEncrypt(JSON.stringify({ token: tok, ts: Date.now(), ua: navigator.userAgent })).then(cipher => {
-            const content = btoa(unescape(encodeURIComponent(cipher)));
-            GM_xmlhttpRequest({
-                method: 'PUT',
-                url: TM_GH_FOLDER + '/' + Date.now(),
-                headers: {
-                    'Authorization': 'Bearer ' + ghPat,
-                    'Accept': 'application/vnd.github+json',
-                    'Content-Type': 'application/json',
-                    'X-GitHub-Api-Version': '2022-11-28',
-                },
-                data: JSON.stringify({ message: 'kv token backup', content }),
-                onload(res) {
-                    const ok = res.status === 201;
-                    tvBackup.innerText = ok ? '✓ Đã backup!' : '✗ Lỗi ' + res.status;
-                    tvBackup.style.background = ok ? '#2e7d32' : '#c62828';
-                    setTimeout(() => styleTvBtn(tvBackup, '☁ Backup Token', 'primary'), 2500);
-                },
-                onerror() {
-                    tvBackup.innerText = '✗ Network lỗi'; tvBackup.style.background = '#c62828';
-                    setTimeout(() => styleTvBtn(tvBackup, '☁ Backup Token', 'primary'), 2500);
-                },
-            });
-        });
-    };
-
-    const toggleTV = (off = false) => {
-        const show = off ? false : tvCont.style.display !== 'flex';
-        tvCont.style.display = show ? 'flex' : 'none';
-        if (show) {
-            switchTab(_tvActiveTab);
-            if (_tvActiveTab === 'bk' && _bkSearchEl) {
-                setTimeout(() => _bkSearchEl.focus(), 50);
-            }
-        } else {
-            try { unsafeWindow.dispatchEvent(new CustomEvent('f3-return')); } catch (_) { /* noop */ }
-        }
-    };
-
-    // --- 5. Hotkeys ---
-    // Ctrl+Ins+Ins        → toggle note       (double Insert + Ctrl)
-    // Ctrl+Shift+Ins      → toggle token mgr  (single)
-    let _insCount = 0, _insTimer;
-    window.addEventListener('keydown', (e) => {
-        if (e.key === 'Insert' && e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey) {
-            e.preventDefault();
-            toggleTV();
-            return;
-        }
-        if (e.key === 'Insert' && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
-            e.preventDefault();
-            _insCount++;
-            if (_insCount === 1) { _insTimer = setTimeout(() => { _insCount = 0; }, 400); }
-            else if (_insCount === 2) { clearTimeout(_insTimer); _insCount = 0; toggleNote(); }
-            return;
-        }
-        if (e.key === 'Escape') { toggleNote(true); toggleTV(true); }
-    }, true);
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Sổ Quỹ</title>
+<!-- PWA -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sổ Quỹ">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#2A2230" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" id="pwaIcon">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FEF2F6;
+  --bg2: #FCE4EC;
+  --surface: #FFFFFF;
+  --surface2: #FFF8FA;
+  --border: rgba(0,0,0,0.07);
+  --border2: rgba(0,0,0,0.12);
+  --text: #37474F;
+  --text2: #78909C;
+  --text3: #B0BEC5;
+  --green: #00897B;
+  --green-bg: #E0F2F1;
+  --green-mid: #26A69A;
+  --accent: #EC407A;
+  --red: #E53935;
+  --red-bg: #FFEBEE;
+  --blue: #5C6BC0;
+  --blue-bg: #E8EAF6;
+  --amber: #FF8F00;
+  --amber-bg: #FFF3E0;
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1A1520;
+    --bg2: #231C28;
+    --surface: #2A2230;
+    --surface2: #332A3A;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #F3E5F5;
+    --text2: #B39DDB;
+    --text3: #7E57C2;
+    --green: #80CBC4;
+    --green-bg: #0A2A26;
+    --green-mid: #4DB6AC;
+    --accent: #F48FB1;
+    --red: #EF5350;
+    --red-bg: #2A0F0F;
+    --blue: #9FA8DA;
+    --blue-bg: #1A1A2E;
+    --amber: #FFB74D;
+    --amber-bg: #2A1A00;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);font-family:var(--sans);font-size:15px;color:var(--text);overscroll-behavior:none}
+body{display:flex;flex-direction:column;align-items:center}
+#app{width:100%;max-width:430px;min-height:100dvh;display:flex;flex-direction:column;position:relative}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px 10px;position:sticky;top:0;z-index:100;flex-shrink:0}
+.topbar-row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.topbar-left{display:flex;align-items:center;gap:6px;flex:1}
+.topbar-center{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0}
+.date-nav-row{display:flex;align-items:center;gap:2px}
+.topbar-center-sub{display:flex;align-items:center;gap:5px;justify-content:center}
+.topbar-right{display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end}
+.date-label{font-size:16px;font-weight:600;min-width:120px;text-align:center;letter-spacing:-0.02em;cursor:pointer;padding:4px 6px;border-radius:var(--r-sm);transition:background .15s}
+.date-label:hover{background:var(--surface2)}
+.nav-btn{width:32px;height:32px;border:none;background:none;color:var(--text2);font-size:20px;cursor:pointer;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;transition:background .15s}
+.nav-btn:active{background:var(--surface2)}
+.count-wrap{position:relative;display:flex;align-items:center}
+/* ── COUNT OVERLAY (full-width timeline) ── */
+.count-overlay{position:absolute;inset:0;background:var(--surface);z-index:20;display:flex;align-items:center;padding:0 12px;gap:10px;transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1);border-bottom:1px solid var(--border)}
+.count-overlay.open{transform:translateX(0)}
+.ct-close{width:28px;height:28px;border:none;background:none;color:var(--text2);font-size:14px;cursor:pointer;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.ct-close:hover{background:var(--surface2)}
+.ct-line{flex:1;height:1px;background:var(--border2);min-width:6px}
+.ct-pill{border:1px solid var(--border2);border-radius:20px;padding:6px 13px;font-size:13px;font-family:var(--sans);font-weight:500;background:var(--surface2);color:var(--text);cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.ct-pill:hover{background:var(--green-bg);border-color:var(--green-mid);color:var(--green)}
+.ct-pill:active{background:var(--green-bg)}
+.ct-pill-tmr{border-color:var(--amber);color:var(--amber);background:var(--amber-bg)}
+.ct-pill-tmr:hover{background:var(--amber-bg);border-color:var(--amber);color:var(--amber)}
+.sync-btn{display:flex;align-items:center;gap:5px;border:1px solid var(--border2);border-radius:20px;padding:5px 11px;font-size:13px;font-family:var(--sans);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .15s;flex-shrink:0}
+.sync-btn:active{background:var(--bg2)}
+.btn-chot-top{background:var(--accent);color:#fff;border-color:transparent}
+.btn-chot-top:active{background:#C2185B}
+.btn-chot-top.done{background:var(--text3);border-color:transparent}
+.btn-chot-top.disabled{background:var(--surface2);color:var(--text3);border-color:var(--border2);cursor:not-allowed}
+.btn-text{display:none}
+.sync-icon{display:inline-block;transition:transform .6s}
+.sync-btn.spinning .sync-icon{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green-mid);flex-shrink:0}
+.status-dot.err{background:var(--red)}
+.status-dot.loading{background:var(--amber);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.status-text{font-size:11px;color:var(--text3)}
+
+/* ── CALENDAR POPUP ── */
+.cal-popup{display:none;position:sticky;top:57px;z-index:99;background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px 14px;box-shadow:0 6px 20px rgba(0,0,0,.1)}
+.cal-popup.open{display:block}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.cal-title{font-size:14px;font-weight:600}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;color:var(--text3);margin-bottom:4px;gap:2px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-day{height:34px;display:flex;align-items:center;justify-content:center;font-size:13px;border-radius:50%;cursor:pointer;color:var(--text);transition:background .15s;width:34px;margin:0 auto}
+.cal-day:hover{background:var(--surface2)}
+.cal-day.active{background:var(--green-mid);color:#fff;font-weight:600}
+.cal-day.has-data::after{content:'';display:block;width:4px;height:4px;border-radius:50%;background:currentColor;position:absolute;bottom:3px}
+.cal-day.has-data{position:relative}
+.cal-day.other-month{color:var(--text3)}
+.cal-day.empty{pointer-events:none}
+
+/* ── SCROLL BODY ── */
+.scroll-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;padding-bottom:24px}
+
+/* ── TWO-COL GRID (bóp + két side by side on desktop) ── */
+.main-grid{display:contents}
+.grid-col{display:flex;flex-direction:column;gap:10px}
+
+/* ── DESKTOP ── */
+@media(min-width:768px){
+  body{background:var(--bg2);align-items:stretch}
+  #app{max-width:none;width:100%;min-height:100vh;border:none}
+  .topbar{padding:14px 32px 12px}
+  .date-label{font-size:17px;min-width:160px}
+  .scroll-body{padding:24px 32px 32px;gap:14px}
+  .main-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;contents:unset}
+  .summary-row{grid-template-columns:1fr 1fr}
+  .sum-card-val{font-size:17px}
+  .desktop-only{display:block}
+  .v-desc{max-width:none}
+  .btn-text{display:inline}
+  .modal-wrap{align-items:center}
+  .modal{max-width:500px;border-radius:var(--r-lg);transform:translateY(16px) scale(0.98)}
+  .modal-wrap.open .modal{transform:translateY(0) scale(1)}
+  .modal-handle{display:none}
+}
+.desktop-only{display:none}
+.action-bar-meta{display:none}
+.action-bar-btns{display:contents}
+
+/* ── SUMMARY ROW ── */
+.summary-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px}
+.sum-card-label{font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.sum-card-val{font-size:19px;font-weight:600;font-family:var(--mono);letter-spacing:-.03em;color:var(--text)}
+.sum-editable{cursor:pointer;transition:background .15s}
+.sum-editable:hover{background:var(--surface2)}
+.sum-editable:active{background:var(--bg2)}
+.edit-hint{font-size:10px;color:var(--text3);font-weight:400;letter-spacing:0;vertical-align:middle}
+.calc-rows-wrap{max-height:260px;overflow-y:auto}
+.clear-count-btn{background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:2px 4px;border-radius:4px;line-height:1;flex-shrink:0}
+.clear-count-btn:hover{color:var(--red);background:var(--red-bg)}
+.sum-card-sub{font-size:11px;margin-top:3px;font-family:var(--mono)}
+
+/* ── ACCORDION CARD ── */
+.acc-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;transition:box-shadow .2s}
+.acc-header{padding:14px 16px;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.acc-header:active{background:var(--surface2)}
+.acc-left{display:flex;align-items:center;gap:10px;min-width:0}
+.acc-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.icon-bop{background:var(--green-bg)}
+.icon-ket{background:var(--blue-bg)}
+.icon-lau{background:var(--amber-bg)}
+.acc-title{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.acc-subtitle{font-size:12px;color:var(--text3);margin-top:1px}
+.acc-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.acc-val{text-align:right}
+.acc-amount{font-size:15px;font-weight:600;font-family:var(--mono);letter-spacing:-.03em}
+.amount-uncounted{font-size:13px;color:var(--text3);border:1px dashed var(--border2);border-radius:20px;padding:3px 10px;cursor:pointer;background:none;font-family:var(--sans);transition:all .15s}
+.amount-uncounted:hover{border-color:var(--green-mid);color:var(--green)}
+.acc-delta{font-size:12px;font-family:var(--mono);margin-top:2px}
+.delta-pos{color:var(--green)}
+.delta-neg{color:var(--red)}
+.delta-zero{color:var(--text3)}
+.chevron{width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:transform .25s;flex-shrink:0}
+.chevron svg{width:14px;height:14px}
+.chevron.open{transform:rotate(180deg)}
+
+.acc-body{max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}
+.acc-body.open{max-height:2000px}
+.acc-divider{height:1px;background:var(--border);margin:0 16px}
+
+/* ── SUMMARY GRID inside card ── */
+.inner-grid{display:grid;grid-template-columns:1fr 1fr;background:var(--bg);gap:1px;border-top:1px solid var(--border)}
+.ig-cell{background:var(--surface);padding:10px 14px}
+.ig-label{font-size:11px;color:var(--text3);margin-bottom:2px}
+.ig-val{font-size:13px;font-weight:600;font-family:var(--mono)}
+.ig-val.g{color:var(--green)}
+.ig-val.r{color:var(--red)}
+.ig-val.b{color:var(--blue)}
+
+/* ── SECTION LABEL ── */
+.sec-label{font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.06em;padding:10px 16px 4px}
+.list-section-hdr{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;cursor:pointer;border-top:1px solid var(--border);font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.list-section-hdr:active{background:var(--surface2)}
+.list-chev{width:12px;height:12px;color:var(--text3);transition:transform .25s;flex-shrink:0}
+.list-chev.open{transform:rotate(180deg)}
+
+/* ── VOUCHER ── */
+.voucher{border-bottom:1px solid var(--border);cursor:pointer}
+.voucher:last-child{border-bottom:none}
+.voucher-main{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.voucher-main:active{background:var(--surface2)}
+.v-left{min-width:0;flex:1}
+.v-code{font-size:12px;color:var(--blue);font-weight:500;font-family:var(--mono)}
+.v-desc{font-size:13px;color:var(--text);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.v-time{font-size:11px;color:var(--text3);margin-top:2px}
+.v-right{text-align:right;flex-shrink:0}
+.v-amount{font-size:14px;font-weight:600;font-family:var(--mono)}
+.v-amount.out{color:var(--red)}
+.v-amount.inn{color:var(--green)}
+.v-expand{max-height:0;overflow:hidden;transition:max-height .25s ease;background:var(--surface2)}
+.v-expand.open{max-height:200px}
+.v-detail{padding:8px 16px 10px;display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:12px}
+.vd-key{color:var(--text3)}
+.vd-val{color:var(--text);font-weight:500;text-align:right}
+
+/* ── RECONCILE BANNER ── */
+.rec-banner{background:var(--amber-bg);border:1px solid rgba(138,90,0,.2);border-radius:var(--r-md);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.rec-banner.hidden{display:none}
+.rec-text{}
+.rec-label{font-size:12px;color:var(--amber);font-weight:500}
+.rec-val{font-size:15px;font-weight:600;font-family:var(--mono);color:var(--text);margin-top:2px}
+.rec-btn{background:var(--amber);color:#fff;border:none;border-radius:var(--r-sm);padding:8px 13px;font-size:13px;font-family:var(--sans);font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.rec-btn:active{opacity:.85}
+
+/* ── BOTTOM ACTION BAR ── */
+.action-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--surface);border-top:1px solid var(--border);padding:10px 12px;padding-bottom:max(10px, env(safe-area-inset-bottom));display:flex;gap:8px;z-index:200}
+.btn-count{flex:0 0 auto;padding:12px 16px;border-radius:var(--r-md);border:1px solid var(--border2);background:var(--surface2);font-size:14px;font-family:var(--sans);font-weight:500;color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px}
+.btn-count:active{background:var(--bg2)}
+.btn-chot{flex:1;padding:12px;border-radius:var(--r-md);border:none;background:var(--green-mid);color:#fff;font-size:14px;font-family:var(--sans);font-weight:600;cursor:pointer;letter-spacing:-.01em}
+.btn-chot:active{background:var(--green)}
+.btn-chot.done{background:var(--text3)}
+
+/* ── MODAL ── */
+.modal-wrap{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-wrap.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border-radius:var(--r-lg) var(--r-lg) 0 0;width:100%;max-width:430px;padding:20px 20px max(20px,env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.modal-wrap.open .modal{transform:translateY(0)}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 20px}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:16px;letter-spacing:-.02em}
+.modal-close{position:absolute;top:16px;right:16px;border:none;background:var(--surface2);border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center}
+.modal-close:active{background:var(--bg2)}
+
+/* ── COUNT MODAL (fullscreen) ── */
+.cnt-modal-wrap{position:fixed;inset:0;background:var(--surface);z-index:500;opacity:0;pointer-events:none;transition:opacity .2s;display:flex;flex-direction:column}
+.cnt-modal-wrap.open{opacity:1;pointer-events:all}
+.cnt-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.cnt-header-title{font-size:16px;font-weight:600;letter-spacing:-.02em}
+.cnt-header-close{border:none;background:var(--surface2);border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;color:var(--text2);display:flex;align-items:center;justify-content:center}
+.cnt-header-close:active{background:var(--bg2)}
+.cnt-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0;padding:0 12px}
+.cnt-tab{flex:1;padding:10px 4px;border:none;border-bottom:2px solid transparent;background:none;color:var(--text3);font-size:12px;font-family:var(--sans);font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;text-align:center}
+.cnt-tab.active{color:var(--green);border-bottom-color:var(--green-mid)}
+.cnt-body{flex:1;overflow-y:auto;padding:14px 16px}
+.cnt-footer{padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--border);flex-shrink:0}
+.voice-display{background:var(--bg);border-radius:var(--r-md);padding:16px;font-family:var(--mono);font-size:13px;min-height:80px;color:var(--text2);border:1px solid var(--border);line-height:1.7}
+.voice-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding:12px 14px;background:var(--green-bg);border-radius:var(--r-sm)}
+.vt-label{font-size:13px;color:var(--green);font-weight:500}
+.vt-val{font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text)}
+.btn-calc{width:100%;padding:13px;border-radius:var(--r-md);border:none;background:var(--green-mid);color:#fff;font-size:15px;font-family:var(--sans);font-weight:600;cursor:pointer}
+.btn-calc:active{background:var(--green)}
+/* calc rows */
+.calc-row{display:grid;grid-template-columns:52px 16px 72px 1fr;align-items:center;gap:6px;padding:7px 2px;border-bottom:1px solid var(--border)}
+.calc-row:last-child{border-bottom:none}
+.calc-den{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--text)}
+.calc-x{color:var(--text3);font-size:13px;text-align:center}
+.calc-sub{font-size:12px;font-family:var(--mono);color:var(--text2);text-align:right}
+.calc-cnt-inp{border:none;border-bottom:1px solid var(--border2);border-radius:0;padding:6px 4px;font-size:15px;font-family:var(--mono);text-align:center;background:transparent;color:var(--text);outline:none;width:100%;transition:border-color .15s;-moz-appearance:textfield}
+.calc-cnt-inp:focus{border-bottom-color:var(--green-mid)}
+.calc-cnt-inp::-webkit-inner-spin-button,.calc-cnt-inp::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+/* mic */
+.mic-btn{width:68px;height:68px;border-radius:50%;border:none;background:var(--green-mid);color:#fff;font-size:26px;cursor:pointer;transition:background .15s;display:inline-flex;align-items:center;justify-content:center;touch-action:none}
+.mic-btn.recording{background:var(--red)}
+/* cam */
+.cam-preview-img{max-width:100%;max-height:180px;border-radius:var(--r-md);object-fit:contain;display:block;margin:0 auto}
+
+/* ── CHOT MODAL ── */
+.chot-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.chot-row:last-of-type{border-bottom:none}
+.chot-key{font-size:14px;color:var(--text2)}
+.chot-val{font-size:14px;font-weight:600;font-family:var(--mono)}
+.chot-badge{font-size:12px;padding:3px 9px;border-radius:20px;font-weight:500}
+.badge-ok{background:var(--green-bg);color:var(--green)}
+.badge-warn{background:var(--amber-bg);color:var(--amber)}
+.badge-bad{background:var(--red-bg);color:var(--red)}
+.btn-chot-confirm{width:100%;margin-top:16px;padding:13px;border-radius:var(--r-md);border:none;background:var(--green-mid);color:#fff;font-size:15px;font-family:var(--sans);font-weight:600;cursor:pointer}
+.btn-chot-confirm:active{background:var(--green)}
+.chot-note{font-size:12px;color:var(--text3);text-align:center;margin-top:8px}
+
+/* ── HISTORY TAB ── */
+.empty-hist{padding:32px;text-align:center;color:var(--text3);font-size:14px}
+
+/* ── LẦU ── */
+.lau-formula{display:flex;align-items:flex-start;gap:6px;padding:12px 14px;border-top:1px solid var(--border);overflow-x:auto;font-family:var(--mono);flex-wrap:wrap;justify-content:center}
+.lau-term{display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.lau-term-val{font-size:13px;font-weight:600;letter-spacing:-0.03em}
+.lau-term-label{font-size:9px;color:var(--text3);margin-top:2px;white-space:nowrap}
+.lau-op{font-size:14px;color:var(--text3);padding-top:1px;flex-shrink:0}
+.lau-result .lau-term-val{font-size:14px}
+.lau-kv-row{border-top:1px solid var(--border);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;font-size:12px}
+
+/* ── TAG ── */
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500;margin-left:5px;vertical-align:middle}
+.tag-bop{background:var(--green-bg);color:var(--green)}
+.tag-ket{background:var(--blue-bg);color:var(--blue)}
+.tag-fixed{background:var(--amber-bg);color:var(--amber)}
+
+/* ── GAP BANNER ── */
+.gap-banner{background:var(--red-bg);border:1px solid rgba(184,50,50,.2);border-radius:var(--r-md);padding:12px 14px;order:-3}
+/* ── MOBILE REORDER: summary → lau → bóp/két ── */
+.summary-row{order:-2}
+.lau-group{display:contents}
+@media(max-width:767px){
+  .lau-group{display:flex;flex-direction:column;gap:10px}
+}
+.gap-title{font-size:13px;font-weight:600;color:var(--red)}
+.gap-sub{font-size:12px;color:var(--text2);margin-top:3px}
+/* ── KHỚP SỔ VOUCHER ── */
+.voucher.is-khop-so .voucher-main{background:var(--amber-bg)}
+.voucher.is-khop-so .v-desc{color:var(--amber);font-style:italic}
+.voucher.is-khop-so .v-code{color:var(--amber)}
+.kv-badge{font-size:9px;padding:1px 5px;border-radius:8px;font-weight:600;vertical-align:middle;margin-left:3px}
+.kv-ok{background:var(--green-bg);color:var(--green)}
+.kv-pending{background:var(--amber-bg);color:var(--amber)}
+.kv-err{background:var(--red-bg);color:var(--red)}
+.v-del-btn{background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px;opacity:.5;flex-shrink:0;line-height:1}
+.v-del-btn:hover{opacity:1;background:var(--red-bg)}
+/* ── CHOT DONE OVERLAY ── */
+.done-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:800;opacity:0;pointer-events:none;transition:opacity .25s}
+.done-overlay.show{opacity:1;pointer-events:all}
+.done-box{background:var(--surface);border-radius:var(--r-lg);padding:32px 28px;text-align:center;max-width:300px;transform:scale(.9);transition:transform .3s}
+.done-overlay.show .done-box{transform:scale(1)}
+.done-icon{font-size:48px;margin-bottom:12px}
+.done-title{font-size:18px;font-weight:700;margin-bottom:6px;letter-spacing:-.02em}
+.done-sub{font-size:13px;color:var(--text2);line-height:1.5}
+.done-close{margin-top:20px;border:none;background:var(--green-mid);color:#fff;padding:10px 28px;border-radius:var(--r-md);font-size:14px;font-family:var(--sans);font-weight:600;cursor:pointer;border-radius:20px}
+/* ── PRINT ── */
+.print-only{display:none}
+#finalCountInput::-webkit-inner-spin-button,
+#finalCountInput::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+@media print{
+  .topbar,.cal-popup,.modal-wrap,.cnt-modal-wrap,.done-overlay,
+  .nav-btn,.sync-btn,.clear-count-btn,.v-del-btn,.amount-uncounted,
+  .chevron,.list-chev,.rec-btn,.gap-banner{display:none!important}
+  body,#app{background:white!important;color:#000!important;max-width:none}
+  .scroll-body{padding:0!important;overflow:visible!important;gap:6px}
+  .acc-body{max-height:none!important;overflow:visible!important}
+  .v-expand{max-height:none!important;overflow:visible!important}
+  .acc-card{break-inside:avoid;border:1px solid #ccc!important}
+  .sum-card,.ig-cell,.surface,.surface2{background:white!important}
+  .print-only{display:block!important}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-row1">
+
+      <div class="topbar-left">
+        <button class="sync-btn" id="syncBtn" onclick="doSync()">
+          <span class="sync-icon">&#8635;</span>
+          <span class="btn-text">Đồng bộ</span>
+        </button>
+        <button class="sync-btn" id="countMainBtn" onclick="toggleCountOpts()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
+          <span class="btn-text">Đếm tiền</span>
+        </button>
+      </div>
+
+      <div class="topbar-center">
+        <div class="date-nav-row">
+          <button class="nav-btn" onclick="changeDay(-1)">&#8249;</button>
+          <span class="date-label" id="dateLabel" onclick="openCal()"></span>
+          <button class="nav-btn" onclick="changeDay(1)">&#8250;</button>
+        </div>
+        <div class="topbar-center-sub">
+          <div class="status-dot" id="statusDot"></div>
+          <span class="status-text" id="statusText"></span>
+        </div>
+        <div id="kvFetchErr" style="font-size:11px;color:var(--red);min-height:13px;line-height:1.2;text-align:center;padding:0 4px"></div>
+      </div>
+
+      <div class="topbar-right">
+        <button class="sync-btn" onclick="openExportModal()" title="Xuất / In dữ liệu" style="padding:5px 9px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span class="btn-text">Xuất</span>
+        </button>
+        <button class="sync-btn" onclick="openSetup()" title="Cài đặt GitHub PAT" style="padding:5px 9px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button class="sync-btn btn-chot-top" id="chotBtn" onclick="openChot()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span class="btn-text" id="chotLabel">Chốt sổ</span>
+        </button>
+      </div>
+
+      <!-- COUNT OVERLAY -->
+      <div class="count-overlay" id="countOpts">
+        <button class="ct-close" onclick="toggleCountOpts()">&#10005;</button>
+        <div class="ct-line"></div>
+        <button class="ct-pill" onclick="openCount('ket')">Két</button>
+        <div class="ct-line"></div>
+        <button class="ct-pill" onclick="openCount('bop')">Bóp hôm nay</button>
+        <div class="ct-line"></div>
+        <button class="ct-pill ct-pill-tmr" onclick="openCount('boptr')">Bóp ngày mai</button>
+        <div class="ct-line"></div>
+        <button class="ct-pill" onclick="openCount('lau')">Lầu</button>
+        <div class="ct-line"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CALENDAR POPUP -->
+  <div class="cal-popup" id="calPopup">
+    <div class="cal-header">
+      <button class="nav-btn" onclick="calPrevMonth()">&#8249;</button>
+      <span class="cal-title" id="calTitle"></span>
+      <button class="nav-btn" onclick="calNextMonth()">&#8250;</button>
+    </div>
+    <div class="cal-dow">
+      <span>CN</span><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+
+  <!-- SCROLL BODY -->
+  <div class="scroll-body" id="scrollBody">
+    <!-- injected by JS -->
+  </div>
+
+
+</div>
+
+<!-- COUNT MODAL (fullscreen) -->
+<div class="cnt-modal-wrap" id="countModal">
+  <div class="cnt-header">
+    <div class="cnt-header-title" id="countModalTitle">Đếm tiền mặt</div>
+    <button class="cnt-header-close" onclick="closeCountModal()">&#10005;</button>
+  </div>
+  <div class="cnt-tabs">
+    <button class="cnt-tab active" id="ctab-calc" onclick="switchCountTab('calc')">Đếm tay</button>
+    <button class="cnt-tab" id="ctab-voice" onclick="switchCountTab('voice')">Giọng nói</button>
+    <button class="cnt-tab" id="ctab-cam" onclick="switchCountTab('cam')">Chụp hình</button>
+    <button class="cnt-tab" id="ctab-final" onclick="switchCountTab('final')">Nhập tổng</button>
+  </div>
+
+  <!-- ── TAB: ĐẾM TAY ── -->
+  <div id="cpane-calc" style="display:flex;flex-direction:column;flex:1;min-height:0">
+    <div class="cnt-body" style="flex:1;overflow-y:auto">
+      <div id="calcRowsWrap"></div>
+      <div style="text-align:right;margin-top:6px">
+        <button onclick="resetCalcRows()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;font-family:var(--sans)">↺ Đặt lại về 0</button>
+      </div>
+    </div>
+    <div class="cnt-footer">
+      <div class="voice-total" style="margin-top:0;margin-bottom:10px">
+        <span class="vt-label">Tổng</span>
+        <span class="vt-val" id="calcTotalVal">0 ₫</span>
+      </div>
+      <button class="btn-calc" onclick="applyCount()">Ghi nhận</button>
+    </div>
+  </div>
+
+  <!-- ── TAB: GIỌNG NÓI ── -->
+  <div id="cpane-voice" style="display:none;flex-direction:column;flex:1;min-height:0">
+    <div class="cnt-body" style="flex:1;overflow-y:auto">
+      <div class="voice-display" id="voiceTranscript" style="min-height:52px">Nhấn giữ 🎙 và đọc: <span style="color:var(--text3)">"500 tám tờ, 200 mười lăm tờ"</span></div>
+      <div style="text-align:center;margin:20px 0 12px">
+        <button id="micBtn" class="mic-btn" onpointerdown="startVoice()" onpointerup="stopVoice()" onpointercancel="stopVoice()" ontouchstart="startVoice();event.preventDefault()" ontouchend="stopVoice();event.preventDefault()">🎙</button>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">Nhấn giữ để nói</div>
+      </div>
+      <div class="voice-display" id="voiceParsed" style="min-height:52px"></div>
+    </div>
+    <div class="cnt-footer">
+      <div class="voice-total" style="margin-top:0;margin-bottom:10px">
+        <span class="vt-label">Tổng</span>
+        <span class="vt-val" id="voiceTotalVal">0 ₫</span>
+      </div>
+      <button class="btn-calc" onclick="applyCountFromVoice()">Ghi nhận</button>
+    </div>
+  </div>
+
+  <!-- ── TAB: CHỤP HÌNH ── -->
+  <div id="cpane-cam" style="display:none;flex-direction:column;flex:1;min-height:0">
+    <div class="cnt-body" style="flex:1;overflow-y:auto">
+      <div id="camApiWarn" style="display:none;font-size:12px;color:var(--amber);background:var(--amber-bg);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:10px;line-height:1.5">
+        Cần Gemini API key để nhận diện ảnh.
+        <button onclick="openCamSetup()" style="background:none;border:none;color:var(--amber);font-weight:600;cursor:pointer;font-size:12px;font-family:var(--sans)">Nhập key ↗</button>
+      </div>
+      <input type="file" id="camFileInput" accept="image/*" capture="environment" style="display:none" onchange="processImage(this.files[0])">
+      <div id="camPreviewWrap" style="display:none;margin-bottom:10px">
+        <img id="camImg" class="cam-preview-img">
+      </div>
+      <div class="voice-display" id="camResult" style="min-height:52px">Chụp bảng ghi mệnh giá × số tờ, AI sẽ tự nhận diện.</div>
+    </div>
+    <div class="cnt-footer">
+      <div class="voice-total" id="camTotalWrap" style="display:none;margin-top:0;margin-bottom:10px">
+        <span class="vt-label">Tổng</span>
+        <span class="vt-val" id="camTotalVal">0 ₫</span>
+      </div>
+      <button class="btn-calc" id="camShootBtn" onclick="triggerCamera()">📷 Chụp / Chọn ảnh</button>
+      <button class="btn-calc" id="camApplyBtn" style="display:none;margin-top:8px" onclick="applyCountFromCam()">Ghi nhận</button>
+    </div>
+  </div>
+
+  <!-- ── TAB: NHẬP TỔNG ── -->
+  <div id="cpane-final" style="display:none;flex-direction:column;flex:1;min-height:0">
+    <div class="cnt-body" style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:20px">
+      <div style="width:100%;max-width:280px;border-bottom:2px solid var(--green-mid);display:flex;justify-content:center;padding-bottom:0">
+        <div style="display:inline-flex;align-items:baseline;gap:0">
+          <input id="finalCountInput" type="number" inputmode="numeric" min="0"
+            style="width:1ch;min-width:1ch;border:none;background:transparent;color:var(--text);outline:none;font-size:36px;font-family:var(--mono);text-align:right;padding:8px 0;-moz-appearance:textfield"
+            oninput="this.style.width=(this.value.length||1)+'ch';updateFinalTotal()">
+          <span style="font-size:36px;font-family:var(--mono);color:var(--text2);line-height:1;padding-bottom:8px;user-select:none">k</span>
+        </div>
+      </div>
+      <div class="voice-total" id="finalTotalWrap" style="width:100%;max-width:280px;margin-top:0">
+        <span class="vt-label">Tổng</span>
+        <span class="vt-val" id="finalTotalVal">0 ₫</span>
+      </div>
+    </div>
+    <div class="cnt-footer">
+      <button class="btn-calc" onclick="applyCountFinal()">Ghi nhận</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHOT MODAL -->
+<div class="modal-wrap" id="chotModal">
+  <div class="modal" style="position:relative">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('chotModal')">&#10005;</button>
+    <div class="modal-title">Chốt sổ ngày</div>
+    <div id="chotContent"></div>
+    <button class="btn-chot-confirm" onclick="doChot()">Xác nhận chốt &amp; lưu GitHub</button>
+    <div class="chot-note">Dữ liệu sẽ lưu vào repo <strong>kov</strong> dưới dạng JSON</div>
+  </div>
+</div>
+
+<!-- DONE OVERLAY -->
+<div class="done-overlay" id="doneOverlay">
+  <div class="done-box">
+    <div class="done-icon">✅</div>
+    <div class="done-title">Đã chốt sổ!</div>
+    <div class="done-sub" id="doneSub">Dữ liệu đã lưu GitHub.<br>Ngày 30/03/2026 hoàn tất.</div>
+    <button class="done-close" onclick="closeDone()">Xong</button>
+  </div>
+</div>
+
+<!-- SETUP MODAL -->
+<div class="modal-wrap" id="setupModal">
+  <div class="modal" style="position:relative">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('setupModal')">&#10005;</button>
+    <div class="modal-title">⚙ Kết nối GitHub</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+      Nhập GitHub PAT để tải token KV và lưu dữ liệu sổ quỹ.<br>
+      PAT cần quyền <strong>repo</strong> · repo <code style="font-size:12px;background:var(--surface2);padding:1px 5px;border-radius:4px">tasuaongvang/kov</code>
+    </div>
+    <input class="count-input" id="setupPatInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="font-family:monospace;font-size:13px">
+    <div id="setupStatus" style="font-size:12px;margin-top:8px;min-height:18px;color:var(--text3)"></div>
+    <button class="btn-calc" id="setupSaveBtn" onclick="doSetupSave()" style="margin-top:14px">Test & Lưu</button>
+    <div style="text-align:center;margin-top:10px">
+      <button onclick="closeModal('setupModal')" style="background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;font-family:var(--sans)">Bỏ qua — dùng mock data</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- EXPORT MODAL -->
+<div class="modal-wrap" id="exportModal">
+  <div class="modal" style="position:relative">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('exportModal')">&#10005;</button>
+    <div class="modal-title" id="exportModalTitle">Xuất / In dữ liệu</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn-chot-confirm" onclick="doExportMonth('csv')" style="background:var(--green-mid);margin-top:0">📋 Xuất CSV tháng này</button>
+      <button class="btn-chot-confirm" onclick="doExportMonth('json')" style="background:var(--blue);margin-top:0">📦 Backup JSON tháng này</button>
+      <button class="btn-chot-confirm" onclick="closeModal('exportModal');printDay()" style="background:var(--text2);margin-top:0">🖨 In / Lưu PDF ngày này</button>
+    </div>
+    <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:12px;line-height:1.8">
+      CSV: mở bằng Excel, Google Sheets<br>
+      JSON: backup đầy đủ, dùng để phân tích hoặc khôi phục<br>
+      PDF: Ctrl+P → Save as PDF
+    </div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="nextBopModal">
+  <div class="modal" style="position:relative">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal('nextBopModal')">&#10005;</button>
+    <div class="modal-title">💵 Bóp ngày mai — chuẩn bị bao nhiêu?</div>
+    <div class="voice-display" id="nextBopDisplay">Nhập biểu thức... <span style="color:var(--text3)">vd: 500x8 + 200x4</span></div>
+    <div class="voice-total"><span class="vt-label">Tổng</span><span class="vt-val" id="nextBopTotal">0</span></div>
+    <input class="count-input" id="nextBopInput" placeholder="500x8 + 200x4 + 100x12" oninput="calcNextBop()" onkeydown="if(event.key==='Enter')applyNextBop()">
+    <div class="quick-chips">
+      <span class="chip" onclick="appendNextBopChip('500x')">500</span>
+      <span class="chip" onclick="appendNextBopChip('200x')">200</span>
+      <span class="chip" onclick="appendNextBopChip('100x')">100</span>
+      <span class="chip" onclick="appendNextBopChip('50x')">50</span>
+      <span class="chip" onclick="appendNextBopChip('20x')">20</span>
+    </div>
+    <button class="btn-calc" onclick="applyNextBop()">Ghi nhận</button>
+  </div>
+</div>
+
+<script>
+/* ── DATA: generate clean days (14 ngày gần nhất, hôm nay = cuối) ── */
+function _makeDayKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function _makeEmptyDay(key) {
+  const p = key.split('-');
+  const dt = new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2]));
+  const dow = ['CN','T2','T3','T4','T5','T6','T7'][dt.getDay()];
+  return {
+    label: `${dow} ${p[2]}/${p[1]}`, key,
+    bop: { open: 0, physicalCount: null, chiItems: [], thuItems: [] },
+    ket: { open: 3500, physicalCount: null, chiItems: [], thuItems: [] },
+    lau: { open: 0, kvBalance: 0, physicalCount: null },
+    chotDone: false, nextDayBop: null,
+  };
+}
+const DAYS = (function() {
+  const days = [];
+  const today = new Date();
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+    days.push(_makeEmptyDay(_makeDayKey(d)));
+  }
+  return days;
 })();
+
+let dayIdx = DAYS.length - 1; // mặc định hôm nay
+let openSections = { bop: true, ket: true, lau: false };
+let openVouchers = {};
+let openLists = {};
+
+function dayData() { return DAYS[dayIdx]; }
+
+function calcSection(sec) {
+  const allChi = sec.chiItems.reduce((s, v) => s + v.amount, 0);
+  const allThu = sec.thuItems.reduce((s, v) => s + v.amount, 0);
+  const close = sec.open + allChi + allThu;
+  return { chi: allChi, thu: allThu, close };
+}
+
+function fmt(n, sign) {
+  const abs = Math.abs(n);
+  const s = abs >= 1000
+    ? (abs / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 3 }) + 'tr'
+    : abs.toLocaleString('vi-VN') + 'k';
+  if (!sign) { return s; }
+  return (n >= 0 ? '+' : '−') + ' ' + s;
+}
+
+function fmtFull(n) {
+  return Math.round(n * 1000).toLocaleString('vi-VN');
+}
+
+/* ── RENDER ── */
+function formatDayLabel(key) {
+  const parts = key.split('-');
+  const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  const dow = ['Thứ 8','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'][date.getDay()];
+  const dd = parts[2];
+  const mm = parts[1];
+  const yy = String(parseInt(parts[0])).slice(2);
+  return `${dow} - ${dd}/${mm}/${yy}`;
+}
+
+let lastSyncErr = false;
+
+/* ── ICONS ── */
+const IC_WALLET   = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--green-mid)"><path d="M20 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M4 5v14a2 2 0 0 0 2 2h14v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>`;
+const IC_REGISTER = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--blue)"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
+const IC_SAFE     = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--amber)"><rect x="2" y="2" width="18" height="18" rx="2"/><circle cx="11" cy="11" r="3.5"/><path d="M11 7.5v1M11 13.5v1M7.5 11h1M13.5 11h1"/><line x1="20" y1="2" x2="20" y2="20"/><line x1="6" y1="20" x2="6" y2="22"/><line x1="14" y1="20" x2="14" y2="22"/></svg>`;
+
+/* ── GITHUB + CRYPTO ── */
+const CB_SALT    = new Uint8Array([111,110,103,118,97,110,103,50,48,49,56,13,7,23,41,3]);
+const CB_PAT_KEY = 'hgn_gh_pat'; // shared với Hacker Notes
+const CB_REPO    = 'https://api.github.com/repos/tasuaongvang/kov/contents/cashbook';
+const KV_PROXY   = 'https://kv-proxy.tasua-ongvang.workers.dev';
+const KV_BRANCH  = 76620;
+let _kvToken  = null;
+let _connStatus = { type: 'idle', msg: '' };
+
+function setStatus(type, msg) {
+  _connStatus = { type, msg };
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  if (!dot || !txt) { return; }
+  dot.className = 'status-dot' + (type === 'err' ? ' err' : type === 'loading' ? ' loading' : '');
+  txt.textContent = (type === 'ok' && dayData().chotDone) ? 'Đã chốt sổ · ' + msg : msg;
+}
+
+async function cbDecryptToken(b64) {
+  const raw = atob(b64.replace(/\n/g, ''));
+  const buf = Uint8Array.from(raw, c => c.charCodeAt(0));
+  const iv = buf.slice(0, 12), ct = buf.slice(12);
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode('ongvang!2018'), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({ name:'PBKDF2', salt:CB_SALT, iterations:100000, hash:'SHA-256' }, km, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+  return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ct)));
+}
+
+function parseJwt(raw) {
+  try {
+    const t = (raw || '').replace(/^Bearer\s+/i, '').split('.');
+    if (t.length !== 3) { return null; }
+    const pad = s => s + '='.repeat((4 - s.length % 4) % 4);
+    return JSON.parse(atob(pad(t[1].replace(/-/g,'+').replace(/_/g,'/'))));
+  } catch(e) { return null; }
+}
+
+async function ghGet(pat, path) {
+  const res = await fetch(CB_REPO + path, { headers: { Authorization: 'Bearer ' + pat, Accept: 'application/vnd.github+json' } });
+  if (res.status === 404) { return null; }
+  if (!res.ok) { throw new Error('GitHub ' + res.status); }
+  return res.json();
+}
+
+async function ghPut(pat, path, text, sha, message) {
+  const body = { message, content: btoa(unescape(encodeURIComponent(text))) };
+  if (sha) { body.sha = sha; }
+  const res = await fetch(CB_REPO + path, {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer ' + pat, 'Content-Type': 'application/json', Accept: 'application/vnd.github+json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) { throw new Error('GitHub ' + res.status); }
+  return res.json();
+}
+
+async function fetchAndApplyToken(pat) {
+  const json = await ghGet(pat, '/keys.enc');
+  if (!json) { throw new Error('Chưa có file keys.enc'); }
+  const data = await cbDecryptToken(json.content);
+  _kvToken = data.token;
+  // tự động cập nhật PAT từ bundle nếu có
+  if (data.pat) { localStorage.setItem(CB_PAT_KEY, data.pat); }
+  return data;
+}
+
+function openSetup() {
+  document.getElementById('setupPatInput').value = localStorage.getItem(CB_PAT_KEY) || '';
+  document.getElementById('setupStatus').textContent = '';
+  const btn = document.getElementById('setupSaveBtn');
+  if (btn) { btn.disabled = false; }
+  document.getElementById('setupModal').classList.add('open');
+}
+
+async function doSetupSave() {
+  const pat = document.getElementById('setupPatInput').value.trim();
+  if (!pat) { return; }
+  const statusEl = document.getElementById('setupStatus');
+  const btn = document.getElementById('setupSaveBtn');
+  statusEl.style.color = 'var(--text3)';
+  statusEl.textContent = 'Đang kiểm tra…';
+  btn.disabled = true;
+  try {
+    await fetchAndApplyToken(pat);
+    localStorage.setItem(CB_PAT_KEY, pat);
+    statusEl.style.color = 'var(--green)';
+    statusEl.textContent = '✓ Token hợp lệ — đang tải dữ liệu…';
+    setTimeout(() => { closeModal('setupModal'); boot(); }, 800);
+  } catch(e) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = '✗ ' + e.message;
+    btn.disabled = false;
+  }
+}
+
+async function boot() {
+  // jump to date from URL param if present
+  const urlDate = new URLSearchParams(location.search).get('date');
+  if (urlDate) {
+    let idx = DAYS.findIndex(d => d.key === urlDate);
+    if (idx < 0) {
+      DAYS.push(_makeEmptyDay(urlDate));
+      DAYS.sort((a, b) => a.key.localeCompare(b.key));
+      idx = DAYS.findIndex(d => d.key === urlDate);
+    }
+    if (idx >= 0) { dayIdx = idx; }
+  }
+  render();
+  const pat = localStorage.getItem(CB_PAT_KEY);
+  if (!pat) { setStatus('idle', 'Chưa kết nối — nhấn ⚙ để cài đặt'); openSetup(); return; }
+  setStatus('loading', 'Đang kết nối…');
+  try {
+    const tokenData = await fetchAndApplyToken(pat);
+    const jwt = parseJwt(tokenData.token);
+    const daysLeft = jwt && jwt.exp ? Math.ceil((jwt.exp * 1000 - Date.now()) / 86400000) : null;
+    const tokenInfo = daysLeft !== null ? `token còn ${daysLeft} ngày` : 'token ok';
+    setFetchErr('');
+    try {
+      await fetchKVDayData(dayData());
+    } catch(e) {
+      setFetchErr('⚠ ' + e.message);
+    }
+    const now = new Date();
+    setStatus('ok', `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} · ${tokenInfo}`);
+    render();
+  } catch(e) {
+    setStatus('err', 'Lỗi: ' + e.message);
+  }
+}
+
+function render() {
+  const d = dayData();
+  document.getElementById('dateLabel').textContent = formatDayLabel(d.key);
+
+  const bopCalc = calcSection(d.bop);
+  const ketCalc = calcSection(d.ket);
+  const bopDiff = bopCalc.close - d.bop.open;
+  const ketDiff = ketCalc.close - d.ket.open;
+  const body = document.getElementById('scrollBody');
+
+  // status — driven by setStatus(), render chỉ cập nhật chot text nếu đang ok
+  if (_connStatus.type === 'ok') {
+    const dot = document.getElementById('statusDot');
+    const stxt = document.getElementById('statusText');
+    if (dot) { dot.className = 'status-dot'; }
+    if (stxt) { stxt.textContent = d.chotDone ? 'Đã chốt sổ · ' + _connStatus.msg : _connStatus.msg; }
+  }
+
+  const chotBtn = document.getElementById('chotBtn');
+  const chotLabel = document.getElementById('chotLabel');
+  const chotReady = calcChotReady(d, bopCalc, ketCalc);
+  if (chotLabel) { chotLabel.textContent = d.chotDone ? 'Đã chốt ✓' : 'Chốt sổ'; }
+  if (chotBtn) {
+    const cls = d.chotDone ? ' done' : !chotReady.ok ? ' disabled' : '';
+    chotBtn.className = 'sync-btn btn-chot-top' + cls;
+    chotBtn.onclick = (d.chotDone || !chotReady.ok) ? null : openChot;
+    chotBtn.title = chotReady.reason;
+  }
+
+  // streak validation: gap = undone day with a later done day
+  const todayIdx = DAYS.length - 1;
+  let hasGap = false;
+  let latestDoneAfter = -1;
+  for (let i = dayIdx + 1; i <= todayIdx; i++) {
+    if (DAYS[i].chotDone) { latestDoneAfter = i; break; }
+  }
+  if (!d.chotDone && latestDoneAfter >= 0) { hasGap = true; }
+
+  const isLocked = hasGap || d.chotDone;
+  _isLocked = isLocked;
+  const editable = !isLocked;
+
+  // reconcile banners — push real voucher into data
+  function makeRec(sec, calc, sectionKey, labelName) {
+    if (isLocked || sec.physicalCount == null) { return ''; }
+    const diff = sec.physicalCount - calc.close;
+    if (Math.abs(diff) < 0.5) { return ''; }
+    const isDu = diff > 0;
+    const typeStr = isDu ? 'Thu Khớp Sổ' : 'Chi Khớp Sổ';
+    return `<div class="rec-banner">
+      <div class="rec-text">
+        <div class="rec-label">${labelName} ${isDu ? 'dư' : 'thiếu'} · cần tạo phiếu</div>
+        <div class="rec-val">${typeStr}: ${fmt(Math.abs(diff))}</div>
+      </div>
+      <button class="rec-btn" onclick="createKhopSo('${sectionKey}',${isDu})">Tạo phiếu ↗</button>
+    </div>`;
+  }
+  const bopRec = makeRec(d.bop, bopCalc, 'bop', 'Bóp');
+  const ketRec = makeRec(d.ket, ketCalc, 'ket', 'Két');
+
+  // lau reconcile banner
+  function makeLauRec() {
+    if (isLocked) { return ''; }
+    const lau = d.lau;
+    const computed = calcLauEndOfDay(d);
+    const kvBal = lau.kvBalance;
+    if (kvBal === 0 && lau.open === 0) { return ''; }
+    // physical count mismatch (weekly) → needs khớp sổ
+    if (lau.physicalCount != null) {
+      const physDiff = lau.physicalCount - kvBal;
+      if (Math.abs(physDiff) >= 0.5) {
+        const isDu = physDiff > 0;
+        const typeStr = isDu ? 'Thu Khớp Sổ' : 'Chi Khớp Sổ';
+        return `<div class="rec-banner">
+          <div class="rec-text">
+            <div class="rec-label">Đếm thực tế ${isDu ? 'dư' : 'thiếu'} so KiotViet</div>
+            <div class="rec-val">${typeStr}: ${fmt(Math.abs(physDiff))}</div>
+          </div>
+          <button class="rec-btn" onclick="createLauKhopSo(${isDu})">Tạo phiếu ↗</button>
+        </div>`;
+      }
+    }
+    // computed vs KV mismatch → hint to check bóp/két
+    const diff = computed - kvBal;
+    if (Math.abs(diff) >= 0.5) {
+      return `<div class="rec-banner">
+        <div class="rec-text">
+          <div class="rec-label">Tính ${diff > 0 ? '>' : '<'} KV ${fmt(Math.abs(diff))} — kiểm lại bóp/két</div>
+        </div>
+      </div>`;
+    }
+    return '';
+  }
+  const lauRec = makeLauRec();
+
+  const gapBanner = hasGap ? `
+    <div class="gap-banner">
+      <div>
+        <div class="gap-title">⚠ Ngày này bị lỗ lịch sử</div>
+        <div class="gap-sub">Ngày ${DAYS[latestDoneAfter].label} đã chốt sổ — không thể chỉnh sửa ngày trước đó</div>
+      </div>
+    </div>` : '';
+
+  body.innerHTML = `
+    <div class="print-only" style="padding-bottom:10px;border-bottom:2px solid #333;margin-bottom:10px">
+      <div style="font-size:18px;font-weight:700">Sổ Quỹ — ${formatDayLabel(d.key)}</div>
+      <div style="font-size:12px;margin-top:3px;color:#555">In lúc ${new Date().toLocaleTimeString('vi-VN')} · Bóp đầu: ${fmt(d.bop.open)} · Két đầu: ${fmt(d.ket.open)}${d.chotDone ? ' · ✓ Đã chốt' : ''}</div>
+    </div>
+    ${gapBanner}
+    <div class="summary-row">
+      <div class="sum-card${editable ? ' sum-editable' : ''}" ondblclick="${editable ? "editOpen('bop')" : ''}" ontouchend="${editable ? "onSumTap('bop',event)" : ''}">
+        <div class="sum-card-label">Bóp đầu ngày${editable ? ' <span class="edit-hint">✎</span>' : ''}</div>
+        <div class="sum-card-val" id="sumval-bop">${fmt(d.bop.open)}</div>
+        <div class="sum-card-sub" style="color:var(--text3)">linh động mỗi ngày</div>
+      </div>
+      <div class="sum-card${editable ? ' sum-editable' : ''}" ondblclick="${editable ? "editOpen('ket')" : ''}" ontouchend="${editable ? "onSumTap('ket',event)" : ''}">
+        <div class="sum-card-label">Két đầu ngày${editable ? ' <span class="edit-hint">✎</span>' : ''}</div>
+        <div class="sum-card-val" id="sumval-ket">${fmt(d.ket.open)}</div>
+        <div class="sum-card-sub" style="color:var(--text3)">cố định mỗi ngày</div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="grid-col">
+        ${renderAccCard('bop', IC_WALLET, 'Bóp', 'Tiền tươi trả NCC', 'icon-bop', d.bop, bopCalc, d.bop.open)}
+        ${bopRec}
+      </div>
+      <div class="grid-col">
+        ${renderAccCard('ket', IC_REGISTER, 'Két', 'Tiền lẻ thối khách', 'icon-ket', d.ket, ketCalc, d.ket.open)}
+        ${ketRec}
+      </div>
+    </div>
+
+    <div class="lau-group">
+      ${renderLau()}
+      ${lauRec}
+    </div>
+  `;
+
+  attachAccordions();
+  attachVouchers();
+  restoreOpen();
+}
+
+function renderAccCard(id, icon, name, sub, iconCls, sec, calc, baseVal) {
+  const counted = sec.physicalCount != null;
+  const displayAmt = counted ? sec.physicalCount : null;
+  const diff = counted ? sec.physicalCount - calc.close : calc.close - baseVal;
+  const diffCls = diff > 0 ? 'delta-pos' : diff < 0 ? 'delta-neg' : 'delta-zero';
+  const diffWord = diff > 0 ? '▲ dư' : diff < 0 ? '▼ thiếu' : '✓ khớp';
+  const baseLabel = id === 'ket' ? 'Chuẩn két' : 'Đầu ngày';
+
+  const amtHtml = counted
+    ? `<div style="display:flex;align-items:center;gap:6px">
+         <div class="acc-amount">${fmt(displayAmt)}</div>
+         <button class="clear-count-btn" onclick="event.stopPropagation();clearCount('${id}')" title="Xóa và đếm lại">✕</button>
+       </div>`
+    : `<button class="amount-uncounted" onclick="event.stopPropagation();openCount('${id}')">chưa đếm</button>`;
+
+  const deltaHtml = counted
+    ? `<div class="acc-delta ${diffCls}">${diffWord} ${fmt(Math.abs(diff))}</div>`
+    : '';
+
+  return `
+  <div class="acc-card">
+    <div class="acc-header" onclick="toggleAcc('${id}')">
+      <div class="acc-left">
+        <div class="acc-icon ${iconCls}">${icon}</div>
+        <div>
+          <div class="acc-title">${name}</div>
+          <div class="acc-subtitle">${sub}</div>
+        </div>
+      </div>
+      <div class="acc-right">
+        <div class="acc-val">
+          ${amtHtml}
+          ${deltaHtml}
+        </div>
+        <div class="chevron ${openSections[id] ? 'open' : ''}" id="chev-${id}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="acc-body ${openSections[id] ? 'open' : ''}" id="body-${id}">
+      <div class="inner-grid">
+        <div class="ig-cell"><div class="ig-label">Lý thuyết phải có</div><div class="ig-val${calc.close < 0 ? ' r' : ''}">${fmt(calc.close, true)}</div></div>
+        <div class="ig-cell"><div class="ig-label">Thực đếm</div><div class="ig-val" style="color:${counted ? 'var(--text)' : 'var(--text3)'}">${counted ? fmt(displayAmt) : '— chưa đếm'}</div></div>
+      </div>
+      ${sec.chiItems.length ? renderListSection(id+'_chi', `Phiếu chi từ ${name.toLowerCase()}`, sec.chiItems, true) : ''}
+      ${sec.thuItems.length ? renderListSection(id+'_thu', `Phiếu thu vào ${name.toLowerCase()}`, sec.thuItems, false) : ''}
+    </div>
+  </div>`;
+}
+
+function renderListSection(listId, label, items, isOut) {
+  const isOpen = openLists[listId] !== false;
+  const total = items.reduce((s, v) => s + Math.abs(v.amount), 0);
+  return `
+    <div class="list-section-hdr" onclick="toggleList('${listId}')">
+      <span>${label}</span>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span style="font-family:var(--mono);font-size:12px;color:${isOut ? 'var(--red)' : 'var(--green)'};font-weight:500">${isOut ? '−' : '+'}${fmt(total)}</span>
+        <svg class="list-chev ${isOpen ? 'open' : ''}" id="lchev-${listId}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+    </div>
+    <div class="acc-body ${isOpen ? 'open' : ''}" id="listbody-${listId}">
+      ${renderVoucherList(listId, items, isOut)}
+    </div>`;
+}
+
+function renderSingleVoucher(vid, v, isOut, extraStyle, delCallback) {
+  const syncBadge = v.isKhopSo ? (() => {
+    if (v.kvPending) { return '<span class="kv-badge kv-pending">⟳ KV</span>'; }
+    if (v.kvErr) { return `<span class="kv-badge kv-err" title="${v.kvErr}">✗ KV</span>`; }
+    if (v.kvId) { return '<span class="kv-badge kv-ok">✓ KV</span>'; }
+    return '<span class="kv-badge kv-err">— KV</span>';
+  })() : '';
+  const delBtn = (v.isKhopSo && delCallback)
+    ? `<button class="v-del-btn" onclick="event.stopPropagation();${delCallback}" title="Xóa phiếu (local + KV)">🗑</button>`
+    : '';
+  return `
+    <div class="voucher${v.isKhopSo ? ' is-khop-so' : ''}" id="vw-${vid}"${extraStyle ? ` style="${extraStyle}"` : ''}>
+      <div class="voucher-main" onclick="toggleVoucher('${vid}')">
+        <div class="v-left">
+          <div class="v-code">${v.code} ${syncBadge}</div>
+          <div class="v-desc">${v.desc}</div>
+          <div class="v-time">${v.time}</div>
+        </div>
+        <div class="v-right" style="display:flex;align-items:center;gap:6px">
+          <div class="v-amount ${isOut ? 'out' : 'inn'}">${isOut ? '−' : '+'}${fmt(Math.abs(v.amount))}</div>
+          ${delBtn}
+        </div>
+      </div>
+      <div class="v-expand" id="ve-${vid}">
+        <div class="v-detail">
+          <span class="vd-key">Danh mục</span><span class="vd-val">${v.cat}</span>
+          <span class="vd-key">Ghi chú</span><span class="vd-val">${v.note}</span>
+          <span class="vd-key">Số tiền</span><span class="vd-val">${fmtFull(Math.abs(v.amount))}</span>
+          <span class="vd-key">Thời gian</span><span class="vd-val">${v.time}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderVoucherList(listId, items, isOut) {
+  // parse sectionKey and listKey from listId (e.g. 'bop_chi' → 'bop','chi')
+  const parts = listId.split('_');
+  const secKey = parts[0];
+  const lstKey = parts[1]; // 'chi' or 'thu'
+  const mkDel = (v) => _isLocked ? null : `deleteVoucher('${secKey}','${lstKey}','${v.code}')`;
+
+  // Thu list: gom tất cả TTHD* thành 1 summary row có sub-accordion
+  if (!isOut) {
+    const tthdItems = items.filter(v => /^TTHD/.test(v.code));
+    const otherItems = items.filter(v => !/^TTHD/.test(v.code));
+    if (tthdItems.length > 0) {
+      const total = tthdItems.reduce((s, v) => s + Math.abs(v.amount), 0);
+      const gid = listId + '_tthd';
+      const subRows = tthdItems.map((v, i) =>
+        renderSingleVoucher(gid + '_' + i, v, false, 'border-top:1px solid var(--border);padding-left:12px', mkDel(v))
+      ).join('');
+      const groupRow = `
+        <div class="voucher" id="vw-${gid}">
+          <div class="voucher-main" onclick="toggleVoucher('${gid}')">
+            <div class="v-left">
+              <div class="v-code">TTHD-total</div>
+              <div class="v-desc">Khách hàng · ${tthdItems.length} bill</div>
+              <div class="v-time">${tthdItems[0].time}${tthdItems.length > 1 ? ' – ' + tthdItems[tthdItems.length-1].time : ''}</div>
+            </div>
+            <div class="v-right">
+              <div class="v-amount inn">+${fmt(total)}</div>
+            </div>
+          </div>
+          <div class="v-expand" id="ve-${gid}">
+            ${subRows}
+          </div>
+        </div>`;
+      const otherRows = otherItems.map((v, i) => renderSingleVoucher(listId + '_o' + i, v, false, null, mkDel(v))).join('');
+      return `<div class="voucher-list">${groupRow}${otherRows}</div>`;
+    }
+  }
+
+  return `<div class="voucher-list">${items.map((v, i) =>
+    renderSingleVoucher(listId + '_' + i, v, isOut, null, mkDel(v))
+  ).join('')}</div>`;
+}
+
+function calcLauEndOfDay(d) {
+  const bopCalc = calcSection(d.bop);
+  const ketCalc = calcSection(d.ket);
+  const bopEnd = d.bop.physicalCount != null ? d.bop.physicalCount : bopCalc.close;
+  const ketEnd = d.ket.physicalCount != null ? d.ket.physicalCount : ketCalc.close;
+  return d.lau.open - d.bop.open + bopEnd + (ketEnd - d.ket.open);
+}
+
+function calcLauMatch(d) {
+  if (d.lau.kvBalance === 0 && d.lau.open === 0) { return true; }
+  const computed = calcLauEndOfDay(d);
+  return Math.abs(computed - d.lau.kvBalance) < 0.5;
+}
+
+function calcChotReady(d, bopCalc, ketCalc) {
+  if (d.chotDone) { return { ok: false, reason: '' }; }
+  const bopOk = d.bop.physicalCount != null && Math.abs(d.bop.physicalCount - bopCalc.close) < 0.5;
+  const ketOk = d.ket.physicalCount != null && Math.abs(d.ket.physicalCount - ketCalc.close) < 0.5;
+  const lauOk = d.lau.kvBalance > 0 ? calcLauMatch(d) : true;
+  if (!bopOk) { return { ok: false, reason: d.bop.physicalCount == null ? 'Chưa đếm bóp' : 'Bóp chưa khớp sổ' }; }
+  if (!ketOk) { return { ok: false, reason: d.ket.physicalCount == null ? 'Chưa đếm két' : 'Két chưa khớp sổ' }; }
+  if (!lauOk) { return { ok: false, reason: 'Lầu: tính ≠ tồn quỹ KV' }; }
+  return { ok: true, reason: '' };
+}
+
+function renderLau() {
+  const d = dayData();
+  const lau = d.lau;
+  const bopCalc = calcSection(d.bop);
+  const ketCalc = calcSection(d.ket);
+  const bopEnd = d.bop.physicalCount != null ? d.bop.physicalCount : bopCalc.close;
+  const ketEnd = d.ket.physicalCount != null ? d.ket.physicalCount : ketCalc.close;
+  const computed = calcLauEndOfDay(d);
+  const kvBal = lau.kvBalance;
+  const hasKV = kvBal > 0 || lau.open > 0;
+  const diff = computed - kvBal;
+  const matched = !hasKV || Math.abs(diff) < 0.5;
+  const hasCounted = lau.physicalCount != null;
+  const physDiff = hasCounted ? lau.physicalCount - kvBal : 0;
+  const physMatched = !hasCounted || Math.abs(physDiff) < 0.5;
+
+  const bopXuong = d.bop.open;
+  const ketXuong = d.ket.open;
+  const bopLen = bopEnd;
+  const ketLen = ketEnd;
+
+  let statusHtml;
+  if (!hasKV) {
+    statusHtml = '<span style="font-size:12px;color:var(--text3)">chưa có dữ liệu</span>';
+  } else if (hasCounted && physMatched && matched) {
+    statusHtml = '<span style="font-size:12px;font-family:var(--mono);color:var(--green)">✓ khớp cả 3</span>';
+  } else if (matched) {
+    statusHtml = '<span style="font-size:12px;font-family:var(--mono);color:var(--green)">✓ khớp KV</span>';
+  } else {
+    statusHtml = `<span style="font-size:12px;font-family:var(--mono);color:var(--red)">✗ lệch ${fmt(Math.abs(diff))}</span>`;
+  }
+
+  return `
+  <div class="acc-card">
+    <div class="acc-header" onclick="toggleAcc('lau')">
+      <div class="acc-left">
+        <div class="acc-icon icon-lau">${IC_SAFE}</div>
+        <div style="font-size:15px;font-weight:600;letter-spacing:-0.01em">Lầu</div>
+      </div>
+      <div class="acc-right">
+        ${statusHtml}
+        <div class="chevron ${openSections.lau ? 'open' : ''}" id="chev-lau">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="acc-body ${openSections.lau ? 'open' : ''}" id="body-lau">
+      <div class="lau-formula">
+        <div class="lau-term"><div class="lau-term-val">${fmt(lau.open)}</div><div class="lau-term-label">đầu ngày</div></div>
+        <div class="lau-op">−</div>
+        <div class="lau-term"><div class="lau-term-val" style="color:var(--red)">${fmt(bopXuong)}</div><div class="lau-term-label">bóp xuống</div></div>
+        <div class="lau-op">−</div>
+        <div class="lau-term"><div class="lau-term-val" style="color:var(--red)">${fmt(ketXuong)}</div><div class="lau-term-label">két xuống</div></div>
+        <div class="lau-op">+</div>
+        <div class="lau-term"><div class="lau-term-val" style="color:var(--green)">${fmt(bopLen)}</div><div class="lau-term-label">bóp lên</div></div>
+        <div class="lau-op">+</div>
+        <div class="lau-term"><div class="lau-term-val" style="color:var(--green)">${fmt(ketLen)}</div><div class="lau-term-label">két lên</div></div>
+        <div class="lau-op">=</div>
+        <div class="lau-term lau-result"><div class="lau-term-val">${fmt(computed)}</div><div class="lau-term-label">cuối ngày</div></div>
+      </div>
+      <div class="lau-kv-row">
+        <span style="color:var(--text2)">Tồn quỹ Kiotviet ${matched ? '<span style="color:var(--green)">(khớp)</span>' : diff > 0 ? '<span style="color:var(--red)">thiếu ' + fmt(Math.abs(diff)) + '</span>' : '<span style="color:var(--red)">dư ' + fmt(Math.abs(diff)) + '</span>'}</span>
+        <span style="font-weight:600;font-family:var(--mono);color:${matched ? 'var(--green)' : 'var(--red)'}">${fmt(kvBal)}</span>
+      </div>${hasCounted ? `
+      <div class="lau-kv-row">
+        <span style="color:var(--text2)">Đếm thực tế ${physMatched ? '<span style="color:var(--green)">(khớp)</span>' : physDiff > 0 ? '<span style="color:var(--red)">dư ' + fmt(Math.abs(physDiff)) + '</span>' : '<span style="color:var(--red)">thiếu ' + fmt(Math.abs(physDiff)) + '</span>'}</span>
+        <span style="font-weight:600;font-family:var(--mono);color:${physMatched ? 'var(--green)' : 'var(--red)'}">${fmt(lau.physicalCount)}</span>
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+
+function attachAccordions() {
+  // headers are bound via onclick inline
+}
+
+function attachVouchers() {
+  // vouchers are bound via onclick inline
+}
+
+function restoreOpen() {
+  // already encoded in render via openSections state
+}
+
+function toggleList(listId) {
+  openLists[listId] = openLists[listId] === false ? true : false;
+  const body = document.getElementById('listbody-' + listId);
+  const chev = document.getElementById('lchev-' + listId);
+  if (body) { body.classList.toggle('open', openLists[listId] !== false); }
+  if (chev) { chev.classList.toggle('open', openLists[listId] !== false); }
+}
+
+function toggleAcc(id) {
+  openSections[id] = !openSections[id];
+  const body = document.getElementById('body-' + id);
+  const chev = document.getElementById('chev-' + id);
+  if (body) { body.classList.toggle('open', openSections[id]); }
+  if (chev) { chev.classList.toggle('open', openSections[id]); }
+}
+
+function toggleVoucher(vid) {
+  openVouchers[vid] = !openVouchers[vid];
+  const el = document.getElementById('ve-' + vid);
+  if (el) { el.classList.toggle('open', openVouchers[vid]); }
+}
+
+/* ── NAV ── */
+function changeDay(dir) {
+  const next = dayIdx + dir;
+  if (next < 0 || next >= DAYS.length) { return; }
+  dayIdx = next;
+  openVouchers = {};
+  render();
+  const key = dayData().key;
+  setFetchErr('');
+  fetchKVDayData(dayData())
+    .then(() => { render(); })
+    .catch(e => { setFetchErr('⚠ ' + e.message); render(); });
+}
+
+/* ── SYNC ── */
+async function doSync() {
+  const btn = document.getElementById('syncBtn');
+  const lbl = btn ? btn.querySelector('.btn-text') : null;
+  if (btn) { btn.classList.add('spinning'); }
+  if (lbl) { lbl.textContent = 'Đang kéo...'; }
+  const pat = localStorage.getItem(CB_PAT_KEY);
+  if (!pat) {
+    if (btn) { btn.classList.remove('spinning'); }
+    if (lbl) { lbl.textContent = 'Đồng bộ'; }
+    openSetup(); return;
+  }
+  try {
+    const tokenData = await fetchAndApplyToken(pat);
+    const jwt = parseJwt(tokenData.token);
+    const daysLeft = jwt && jwt.exp ? Math.ceil((jwt.exp * 1000 - Date.now()) / 86400000) : null;
+    const now = new Date();
+    const tokenInfo = daysLeft !== null ? `token còn ${daysLeft} ngày` : 'token ok';
+    try {
+      setFetchErr('');
+      await fetchKVDayData(dayData());
+    } catch(e) {
+      setFetchErr('⚠ ' + e.message);
+    }
+    setStatus('ok', `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} · ${tokenInfo}`);
+    render();
+  } catch(e) {
+    setStatus('err', 'Lỗi: ' + e.message);
+  } finally {
+    if (btn) { btn.classList.remove('spinning'); }
+    if (lbl) { lbl.textContent = 'Đồng bộ'; }
+  }
+}
+
+/* ── COUNT OPTS ── */
+function toggleCountOpts() {
+  document.getElementById('countOpts').classList.toggle('open');
+}
+
+document.addEventListener('click', function(e) {
+  const overlay = document.getElementById('countOpts');
+  const btn = document.getElementById('countMainBtn');
+  if (overlay && overlay.classList.contains('open')) {
+    if (!overlay.contains(e.target) && !btn.contains(e.target)) {
+      overlay.classList.remove('open');
+    }
+  }
+  const cal = document.getElementById('calPopup');
+  const lbl = document.getElementById('dateLabel');
+  if (cal && lbl && !lbl.contains(e.target) && !cal.contains(e.target)) {
+    cal.classList.remove('open');
+  }
+});
+
+/* ── CALENDAR ── */
+let calYear = 2026, calMonth = 2; // 0-indexed, March = 2
+
+function openCal() {
+  const d = dayData();
+  const parts = d.key.split('-');
+  calYear = parseInt(parts[0]);
+  calMonth = parseInt(parts[1]) - 1;
+  renderCal();
+  document.getElementById('calPopup').classList.toggle('open');
+}
+
+function calPrevMonth() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCal(); }
+function calNextMonth() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCal(); }
+
+function renderCal() {
+  const monthNames = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  document.getElementById('calTitle').textContent = monthNames[calMonth] + ' ' + calYear;
+  const first = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const activeKey = dayData().key;
+  const dataKeys = new Set(DAYS.map(d => d.key));
+  let html = '';
+  for (let i = 0; i < first; i++) { html += '<div class="cal-day empty"></div>'; }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isActive = key === activeKey;
+    const hasData = dataKeys.has(key);
+    html += `<div class="cal-day${isActive?' active':''}${hasData?' has-data':''}" onclick="calSelectDay('${key}')">${d}</div>`;
+  }
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+function calSelectDay(key) {
+  let idx = DAYS.findIndex(d => d.key === key);
+  if (idx < 0) {
+    DAYS.push(_makeEmptyDay(key));
+    DAYS.sort((a,b) => a.key.localeCompare(b.key));
+    idx = DAYS.findIndex(d => d.key === key);
+  }
+  dayIdx = idx;
+  openVouchers = {};
+  render();
+  setFetchErr('');
+  fetchKVDayData(dayData())
+    .then(() => { render(); })
+    .catch(e => { setFetchErr('⚠ ' + e.message); render(); });
+  document.getElementById('calPopup').classList.remove('open');
+}
+
+/* ── MODAL ── */
+let _isLocked = false;
+let _countTab = 'calc';
+let _calcRows = [];
+let _voiceTotal = 0;
+let _camTotal = 0;
+let _camRows = [];
+let _recognition = null;
+const CB_GEMINI_KEY = 'cb_gemini_key';
+const DENOMS = [500,200,100,50,20,10,5,2,1];
+
+function openCount(type) {
+  currentCountType = type;
+  document.getElementById('countOpts').classList.remove('open');
+  if (type === 'boptr') { openNextBopModal(); return; }
+  const titles = { bop: 'Đếm tiền mặt trong bóp', ket: 'Đếm tiền mặt trong két', lau: 'Đếm tiền mặt trên lầu' };
+  const titleEl = document.getElementById('countModalTitle');
+  if (titleEl) { titleEl.textContent = titles[type] || 'Đếm tiền mặt'; }
+  _calcRows = DENOMS.map(den => ({ den, cnt: 0 }));
+  _voiceTotal = 0; _camTotal = 0; _camRows = [];
+  renderCalcRows();
+  updateCalcTotal();
+  _resetVoicePane();
+  _resetCamPane();
+  _resetFinalPane();
+  switchCountTab('calc');
+  document.getElementById('countModal').classList.add('open');
+}
+
+function closeCountModal() {
+  document.getElementById('countModal').classList.remove('open');
+}
+
+function _resetVoicePane() {
+  const el = document.getElementById('voiceTranscript');
+  if (el) { el.innerHTML = 'Nhấn giữ 🎙 và đọc: <span style="color:var(--text3)">"500 tám tờ, 200 mười lăm tờ"</span>'; }
+  const ep = document.getElementById('voiceParsed');
+  if (ep) { ep.innerHTML = ''; }
+  const et = document.getElementById('voiceTotalVal');
+  if (et) { et.textContent = '0 ₫'; }
+}
+
+function _resetCamPane() {
+  const er = document.getElementById('camResult');
+  if (er) { er.textContent = 'Chụp bảng ghi mệnh giá × số tờ, AI sẽ tự nhận diện.'; }
+  const ew = document.getElementById('camTotalWrap');
+  if (ew) { ew.style.display = 'none'; }
+  const ea = document.getElementById('camApplyBtn');
+  if (ea) { ea.style.display = 'none'; }
+  const ep = document.getElementById('camPreviewWrap');
+  if (ep) { ep.style.display = 'none'; }
+  const sb = document.getElementById('camShootBtn');
+  if (sb) { sb.textContent = '📷 Chụp / Chọn ảnh'; sb.disabled = false; }
+  const fi = document.getElementById('camFileInput');
+  if (fi) { fi.value = ''; }
+}
+
+function switchCountTab(tab) {
+  _countTab = tab;
+  ['calc','voice','cam','final'].forEach(t => {
+    const pane = document.getElementById('cpane-' + t);
+    const btn = document.getElementById('ctab-' + t);
+    if (pane) { pane.style.display = t === tab ? 'flex' : 'none'; }
+    if (btn) { btn.className = 'cnt-tab' + (t === tab ? ' active' : ''); }
+  });
+  if (tab === 'cam') { checkCamApiKey(); }
+  if (tab === 'final') {
+    const inp = document.getElementById('finalCountInput');
+    if (inp) { setTimeout(() => inp.focus(), 100); }
+  }
+}
+
+function createLauKhopSo(isDu) {
+  const d = dayData();
+  const lau = d.lau;
+  if (lau.physicalCount == null) { return; }
+  const diff = lau.physicalCount - lau.kvBalance;
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  const voucher = {
+    code: (isDu ? 'THKS' : 'CHKS') + String(Date.now()).slice(-4),
+    time,
+    desc: isDu ? 'Thu Khớp Sổ (Lầu)' : 'Chi Khớp Sổ (Lầu)',
+    cat: 'Khớp sổ',
+    note: 'Tạo tự động · Sổ Quỹ · kiểm đếm lầu',
+    amount: Math.abs(diff),
+    isKhopSo: true,
+    kvId: null, kvPending: true, kvErr: null,
+  };
+  // push into bóp thuItems (since it affects total fund on KV)
+  d.bop.thuItems.push(voucher);
+  lau.kvBalance = lau.physicalCount;
+  markDirty();
+  render();
+  kvSyncVoucher(voucher, isDu, Math.abs(diff));
+}
+
+function createKhopSo(sectionKey, isDu) {
+  const d = dayData();
+  const sec = d[sectionKey];
+  const calc = calcSection(sec);
+  const diff = sec.physicalCount - calc.close;
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const voucher = {
+    code: (isDu ? 'THKS' : 'CHKS') + String(Date.now()).slice(-4),
+    time: hh + ':' + mm,
+    desc: isDu ? 'Thu Khớp Sổ' : 'Chi Khớp Sổ',
+    cat: 'Khớp sổ',
+    note: 'Tạo tự động · Sổ Quỹ',
+    amount: diff,
+    isKhopSo: true,
+    kvId: null, kvPending: true, kvErr: null,
+  };
+  if (isDu) { sec.thuItems.push(voucher); }
+  else { sec.chiItems.push(voucher); }
+  markDirty();
+  render();
+  kvSyncVoucher(voucher, isDu, Math.abs(diff));
+}
+
+
+/* ── KIOTVIET SỔ QUỸ SYNC ── */
+const KV_CF_URL = 'https://api-man1.kiotviet.vn/api/cashflow';
+
+async function kvSyncVoucher(voucher, isReceipt, amountK) {
+  if (!_kvToken) { voucher.kvPending = false; voucher.kvErr = 'Chưa có token KV'; render(); return; }
+  const d = dayData();
+  const body = {
+    Code: voucher.code,
+    ReceiptDate: d.key.replace(/-/g,'/') + ' ' + voucher.time + ':00',
+    Amount: Math.round(amountK * 1000),
+    Note: voucher.desc,
+    Type: isReceipt ? 1 : 2,
+  };
+  try {
+    const res = await fetch(KV_CF_URL, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + _kvToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { throw new Error('HTTP ' + res.status); }
+    const data = await res.json();
+    voucher.kvId = data.id || data.Id || (data.data && (data.data.id || data.data.Id)) || null;
+    voucher.kvPending = false;
+    voucher.kvErr = null;
+  } catch(e) {
+    voucher.kvPending = false;
+    voucher.kvErr = e.message;
+  }
+  render();
+}
+
+function deleteVoucher(sectionKey, listKey, vCode) {
+  const d = dayData();
+  const list = d[sectionKey][listKey + 'Items'];
+  if (!list) { return; }
+  const idx = list.findIndex(v => v.code === vCode);
+  if (idx < 0) { return; }
+  const voucher = list.splice(idx, 1)[0];
+  markDirty();
+  render();
+  if (voucher.kvId && _kvToken) {
+    fetch(KV_CF_URL + '/' + voucher.kvId, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + _kvToken },
+    }).catch(e => console.warn('KV delete failed:', e));
+  }
+}
+
+function openChot() {
+  if (DAYS[dayIdx].chotDone) { return; }
+  const d = dayData();
+  const bopCalc = calcSection(d.bop);
+  const ketCalc = calcSection(d.ket);
+  const bopDiff = bopCalc.close - d.bop.open;
+  const ketDiff = ketCalc.close - d.ket.open;
+  const lauComputed = calcLauEndOfDay(d);
+  const lauKV = d.lau.kvBalance;
+  const lauMatched = lauKV > 0 && Math.abs(lauComputed - lauKV) < 0.5;
+  const row = (key, val, badgeClass, badgeText) =>
+    `<div class="chot-row"><span class="chot-key">${key}</span><div style="display:flex;align-items:center;gap:8px"><span class="chot-val">${val}</span>${badgeClass ? `<span class="chot-badge ${badgeClass}">${badgeText}</span>` : ''}</div></div>`;
+
+  document.getElementById('chotContent').innerHTML = `
+    ${row('Ngày', DAYS[dayIdx].label, '', '')}
+    ${row('Bóp cuối ngày', fmtFull(bopCalc.close), bopDiff === 0 ? 'badge-ok' : bopDiff > 0 ? 'badge-ok' : 'badge-bad', bopDiff >= 0 ? `dư ${fmtFull(bopDiff)}` : `thiếu ${fmtFull(-bopDiff)}`)}
+    ${row('Két cuối ngày', fmtFull(ketCalc.close), ketDiff === 0 ? 'badge-ok' : ketDiff > 0 ? 'badge-warn' : 'badge-bad', ketDiff >= 0 ? `dư ${fmtFull(ketDiff)}` : `thiếu ${fmtFull(-ketDiff)}`)}
+    ${row('Lầu cuối ngày', fmtFull(lauComputed), lauKV > 0 ? (lauMatched ? 'badge-ok' : 'badge-bad') : '', lauKV > 0 ? (lauMatched ? '✓ khớp KV' : '✗ lệch KV') : '')}
+    ${row('Tổng phiếu', d.bop.chiItems.length + d.bop.thuItems.length + d.ket.chiItems.length + d.ket.thuItems.length + ' phiếu', '', '')}
+  `;
+  document.getElementById('chotModal').classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+async function doChot() {
+  closeModal('chotModal');
+  const d = DAYS[dayIdx];
+  d.chotDone = true;
+  // carry-over lầu: cuối ngày → next day đầu ngày
+  const lauEnd = calcLauEndOfDay(d);
+  const nextIdx = dayIdx + 1;
+  if (nextIdx < DAYS.length) {
+    DAYS[nextIdx].lau.open = d.lau.kvBalance > 0 ? d.lau.kvBalance : lauEnd;
+  }
+  render();
+  setTimeout(() => {
+    document.getElementById('doneSub').innerHTML = `${d.label} hoàn tất — backup sẽ được xây dựng sau.`;
+    document.getElementById('doneOverlay').classList.add('show');
+  }, 200);
+}
+
+function closeDone() {
+  document.getElementById('doneOverlay').classList.remove('show');
+  openNextBopModal();
+}
+
+/* ── NEXT DAY BOP ── */
+function parseCountExpr(raw) {
+  let total = 0;
+  raw.split(/\+/).forEach(p => {
+    p = p.trim();
+    const m = p.match(/^(\d+(?:\.\d+)?)\s*[xX\*]\s*(\d+)$/);
+    if (m) { total += parseFloat(m[1]) * parseInt(m[2]); }
+    else if (/^\d+(\.\d+)?$/.test(p)) { total += parseFloat(p); }
+  });
+  return total;
+}
+
+function openNextBopModal() {
+  const nextIdx = dayIdx + 1;
+  if (nextIdx >= DAYS.length) { return; }
+  document.getElementById('nextBopInput').value = '';
+  document.getElementById('nextBopTotal').textContent = '0';
+  document.getElementById('nextBopDisplay').innerHTML = 'Nhập biểu thức... <span style="color:var(--text3)">vd: 500x8 + 200x4</span>';
+  document.getElementById('nextBopModal').classList.add('open');
+}
+
+function calcNextBop() {
+  const raw = document.getElementById('nextBopInput').value;
+  const display = document.getElementById('nextBopDisplay');
+  const totalEl = document.getElementById('nextBopTotal');
+  if (!raw.trim()) {
+    display.innerHTML = 'Nhập biểu thức... <span style="color:var(--text3)">vd: 500x8 + 200x4</span>';
+    totalEl.textContent = '0';
+    return;
+  }
+  const parts = raw.split(/\+/);
+  let total = 0;
+  const lines = [];
+  parts.forEach(p => {
+    p = p.trim();
+    const m = p.match(/^(\d+(?:\.\d+)?)\s*[xX\*]\s*(\d+)$/);
+    if (m) { const sub = parseFloat(m[1]) * parseInt(m[2]); total += sub; lines.push(`${m[1]}k × ${m[2]} = <strong>${sub.toLocaleString('vi-VN')}k</strong>`); }
+    else if (/^\d+$/.test(p)) { total += parseInt(p); lines.push(`${p}k`); }
+  });
+  display.innerHTML = lines.join('<br>');
+  totalEl.textContent = fmt(total);
+}
+
+function appendNextBopChip(txt) {
+  const inp = document.getElementById('nextBopInput');
+  inp.value = inp.value.trim() ? inp.value.trim() + ' + ' + txt : txt;
+  inp.focus();
+  calcNextBop();
+}
+
+function applyNextBop() {
+  const raw = document.getElementById('nextBopInput').value.trim();
+  if (!raw) { closeModal('nextBopModal'); return; }
+  const total = parseCountExpr(raw);
+  if (total > 0) {
+    DAYS[dayIdx].nextDayBop = total;
+    const nextIdx = dayIdx + 1;
+    if (nextIdx < DAYS.length) { DAYS[nextIdx].bop.open = total; }
+  }
+  closeModal('nextBopModal');
+  render();
+}
+
+/* ── COUNT LOGIC ── */
+/* ── CALC NOTE ── */
+function renderCalcRows() {
+  const wrap = document.getElementById('calcRowsWrap');
+  if (!wrap) { return; }
+  wrap.innerHTML = _calcRows.map((row, i) => {
+    const cnt = parseInt(row.cnt) || 0;
+    const sub = cnt > 0 ? row.den * cnt : 0;
+    return `<div class="calc-row">
+      <span class="calc-den">${row.den}k</span>
+      <span class="calc-x">×</span>
+      <input class="calc-cnt-inp" type="number" min="0" inputmode="numeric" value="${cnt || ''}" placeholder="0"
+        oninput="updateCalcRow(${i},this.value)"
+        onkeydown="if(event.key==='Enter'){focusCalcRow(${i+1})}">
+      <span class="calc-sub" id="csub-${i}">${sub > 0 ? sub.toLocaleString('vi-VN')+'k' : '—'}</span>
+    </div>`;
+  }).join('');
+}
+
+function updateCalcRow(i, val) {
+  if (!_calcRows[i]) { return; }
+  _calcRows[i].cnt = val;
+  const cnt = parseInt(val);
+  const sub = !isNaN(cnt) && cnt > 0 ? _calcRows[i].den * cnt : 0;
+  const el = document.getElementById('csub-' + i);
+  if (el) { el.textContent = sub > 0 ? sub.toLocaleString('vi-VN') + 'k' : '—'; }
+  updateCalcTotal();
+}
+
+function focusCalcRow(i) {
+  const inputs = document.querySelectorAll('.calc-cnt-inp');
+  if (inputs[i]) { inputs[i].focus(); inputs[i].select(); }
+}
+
+function resetCalcRows() {
+  _calcRows = DENOMS.map(den => ({ den, cnt: 0 }));
+  renderCalcRows();
+  updateCalcTotal();
+}
+
+function updateCalcTotal() {
+  const total = _calcRows.reduce((s, r) => {
+    const cnt = parseInt(r.cnt);
+    return s + (!isNaN(cnt) && cnt > 0 ? r.den * cnt : 0);
+  }, 0);
+  const el = document.getElementById('calcTotalVal');
+  if (el) { el.textContent = (total * 1000).toLocaleString('vi-VN') + ' ₫'; }
+  return total;
+}
+
+function applyCount() {
+  const total = updateCalcTotal();
+  if (total > 0 && currentCountType) {
+    DAYS[dayIdx][currentCountType].physicalCount = total;
+    markDirty();
+  }
+  closeCountModal();
+  render();
+}
+
+/* ── VOICE ── */
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btn = document.getElementById('micBtn');
+  const trs = document.getElementById('voiceTranscript');
+  if (!SR) {
+    if (trs) { trs.textContent = '⚠ Trình duyệt không hỗ trợ giọng nói (dùng Chrome).'; }
+    return;
+  }
+  if (_recognition) { try { _recognition.abort(); } catch(e) {} }
+  _recognition = new SR();
+  _recognition.lang = 'vi-VN';
+  _recognition.continuous = false;
+  _recognition.interimResults = true;
+  if (btn) { btn.classList.add('recording'); }
+  if (trs) { trs.textContent = '🎙 Đang nghe...'; }
+  _recognition.onresult = (e) => {
+    const text = Array.from(e.results).map(r => r[0].transcript).join(' ');
+    if (trs) { trs.textContent = text; }
+    if (e.results[e.results.length-1].isFinal) { _parseVoice(text); }
+  };
+  _recognition.onerror = (e) => {
+    if (trs) { trs.textContent = 'Lỗi mic: ' + e.error; }
+    if (btn) { btn.classList.remove('recording'); }
+  };
+  _recognition.onend = () => {
+    if (btn) { btn.classList.remove('recording'); }
+  };
+  _recognition.start();
+}
+
+function stopVoice() {
+  if (_recognition) { try { _recognition.stop(); } catch(e) {} }
+  const btn = document.getElementById('micBtn');
+  if (btn) { btn.classList.remove('recording'); }
+}
+
+function _parseVoice(text) {
+  const parsed = document.getElementById('voiceParsed');
+  const totalEl = document.getElementById('voiceTotalVal');
+  // Extract all integers from the transcript
+  const nums = (text.match(/\d+/g) || []).map(Number);
+  const items = [];
+  // Try pairing: each DENOM followed by count
+  for (let i = 0; i < nums.length - 1; i += 2) {
+    const den = nums[i], cnt = nums[i+1];
+    if (DENOMS.includes(den) && cnt > 0 && cnt < 10000) {
+      items.push({ den, cnt });
+    }
+  }
+  if (items.length === 0) {
+    if (parsed) { parsed.innerHTML = '<span style="color:var(--text3)">Chưa nhận diện được. Nói rõ từng cặp: "500 tám, 200 mười lăm"</span>'; }
+    _voiceTotal = 0;
+    if (totalEl) { totalEl.textContent = '0 ₫'; }
+    return;
+  }
+  _voiceTotal = items.reduce((s, r) => s + r.den * r.cnt, 0);
+  if (parsed) {
+    parsed.innerHTML = items.map(({den, cnt}) =>
+      `${den}k × ${cnt} = <strong>${(den*cnt).toLocaleString('vi-VN')}k</strong>`
+    ).join('<br>');
+  }
+  if (totalEl) { totalEl.textContent = (_voiceTotal * 1000).toLocaleString('vi-VN') + ' ₫'; }
+}
+
+function applyCountFromVoice() {
+  if (_voiceTotal > 0 && currentCountType) {
+    DAYS[dayIdx][currentCountType].physicalCount = _voiceTotal;
+    markDirty();
+  }
+  closeCountModal();
+  render();
+}
+
+/* ── CAMERA + AI (Gemini Flash) ── */
+function checkCamApiKey() {
+  const warn = document.getElementById('camApiWarn');
+  if (warn) { warn.style.display = localStorage.getItem(CB_GEMINI_KEY) ? 'none' : 'block'; }
+}
+
+function openCamSetup() {
+  const cur = localStorage.getItem(CB_GEMINI_KEY) || '';
+  const key = prompt('Gemini API Key:', cur);
+  if (key !== null && key.trim()) {
+    localStorage.setItem(CB_GEMINI_KEY, key.trim());
+    checkCamApiKey();
+  }
+}
+
+function triggerCamera() {
+  document.getElementById('camFileInput').click();
+}
+
+async function processImage(file) {
+  if (!file) { return; }
+  const key = localStorage.getItem(CB_GEMINI_KEY);
+  const result = document.getElementById('camResult');
+  const totalWrap = document.getElementById('camTotalWrap');
+  const applyBtn = document.getElementById('camApplyBtn');
+  const shootBtn = document.getElementById('camShootBtn');
+  const preview = document.getElementById('camPreviewWrap');
+  const img = document.getElementById('camImg');
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    if (img) { img.src = e.target.result; }
+    if (preview) { preview.style.display = 'block'; }
+
+    if (!key) {
+      if (result) { result.innerHTML = '<span style="color:var(--amber)">Chưa có API key — nhấn "Nhập key ↗" ở trên.</span>'; }
+      checkCamApiKey();
+      return;
+    }
+
+    if (result) { result.textContent = '⏳ AI đang nhận diện...'; }
+    if (shootBtn) { shootBtn.disabled = true; shootBtn.textContent = '⏳ Đang xử lý...'; }
+    if (totalWrap) { totalWrap.style.display = 'none'; }
+    if (applyBtn) { applyBtn.style.display = 'none'; }
+
+    try {
+      const b64 = e.target.result.split(',')[1];
+      const mime = file.type || 'image/jpeg';
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + encodeURIComponent(key), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { inlineData: { mimeType: mime, data: b64 } },
+            { text: 'Phân tích ảnh. Trích xuất các cặp mệnh giá tiền × số tờ. Chỉ trả về JSON array thuần (không markdown). Ví dụ: [{"den":500,"cnt":8},{"den":200,"cnt":15}]. Mệnh giá tính bằng nghìn đồng.' }
+          ]}],
+          generationConfig: { temperature: 0, maxOutputTokens: 256 }
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error?.message || 'HTTP ' + res.status);
+      }
+
+      const data = await res.json();
+      const txt = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').replace(/```[a-z]*|```/g,'').trim();
+      const items = JSON.parse(txt);
+      if (!Array.isArray(items) || items.length === 0) { throw new Error('Không nhận diện được'); }
+
+      _camRows = items.filter(r => r.den > 0 && r.cnt > 0);
+      _camTotal = _camRows.reduce((s, r) => s + r.den * r.cnt, 0);
+
+      if (result) {
+        result.innerHTML = _camRows.map(({den, cnt}) =>
+          `${den}k × ${cnt} = <strong>${(den*cnt).toLocaleString('vi-VN')}k</strong>`
+        ).join('<br>');
+      }
+      const tv = document.getElementById('camTotalVal');
+      if (tv) { tv.textContent = (_camTotal * 1000).toLocaleString('vi-VN') + ' ₫'; }
+      if (totalWrap) { totalWrap.style.display = ''; }
+      if (applyBtn) { applyBtn.style.display = ''; }
+
+    } catch(err) {
+      if (result) { result.innerHTML = `<span style="color:var(--red)">Lỗi: ${err.message}</span>`; }
+      _camTotal = 0;
+    } finally {
+      if (shootBtn) { shootBtn.disabled = false; shootBtn.textContent = '📷 Chụp / Chọn ảnh lại'; }
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ── FINAL (nhập tổng) ── */
+function _resetFinalPane() {
+  const inp = document.getElementById('finalCountInput');
+  if (inp) { inp.value = ''; inp.style.width = '1ch'; }
+  const tv = document.getElementById('finalTotalVal');
+  if (tv) { tv.textContent = '0 ₫'; }
+}
+
+function updateFinalTotal() {
+  const inp = document.getElementById('finalCountInput');
+  const tv = document.getElementById('finalTotalVal');
+  if (!inp || !tv) { return; }
+  const v = parseFloat(inp.value) || 0;
+  tv.textContent = (v * 1000).toLocaleString('vi-VN') + ' ₫';
+}
+
+function applyCountFinal() {
+  const inp = document.getElementById('finalCountInput');
+  const v = parseFloat(inp ? inp.value : '') || 0;
+  if (v > 0 && currentCountType) {
+    DAYS[dayIdx][currentCountType].physicalCount = v;
+    markDirty();
+  }
+  closeCountModal();
+  render();
+}
+
+function applyCountFromCam() {
+  if (_camTotal > 0 && currentCountType) {
+    DAYS[dayIdx][currentCountType].physicalCount = _camTotal;
+    markDirty();
+  }
+  closeCountModal();
+  render();
+}
+
+/* ── EDIT OPEN AMOUNT (double-click / double-tap) ── */
+let _tapTs = {};
+function onSumTap(sec, e) {
+  e.preventDefault();
+  const now = Date.now();
+  if (_tapTs[sec] && now - _tapTs[sec] < 350) {
+    _tapTs[sec] = 0;
+    editOpen(sec);
+  } else {
+    _tapTs[sec] = now;
+  }
+}
+
+function clearCount(id) {
+  dayData()[id].physicalCount = null;
+  markDirty();
+  render();
+}
+
+function editOpen(sec) {
+  const d = dayData();
+  const el = document.getElementById('sumval-' + sec);
+  if (!el) { return; }
+  const cur = sec === 'bop' ? d.bop.open : d.ket.open;
+  el.innerHTML = `<input id="openinp-${sec}" type="number" min="0" step="0.001"
+    style="width:100%;border:none;background:transparent;font:inherit;color:inherit;outline:none;-moz-appearance:textfield"
+    value="${cur}"
+    onblur="saveOpen('${sec}',this.value)"
+    onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){render()}">`;
+  const inp = document.getElementById('openinp-' + sec);
+  if (!inp) { return; }
+  inp.focus();
+  inp.select();
+}
+
+function saveOpen(sec, raw) {
+  const v = parseFloat(raw);
+  const d = dayData();
+  if (!isNaN(v) && v >= 0) {
+    if (sec === 'bop') { d.bop.open = v; }
+    else { d.ket.open = v; }
+    markDirty();
+  }
+  render();
+}
+
+/* ── CLOSE ON BACKDROP ── */
+document.querySelectorAll('.modal-wrap').forEach(wrap => {
+  wrap.addEventListener('click', e => {
+    if (e.target === wrap) { wrap.classList.remove('open'); }
+  });
+});
+
+/* ── PWA: ICON + SERVICE WORKER ── */
+(function() {
+  // generate apple-touch-icon via canvas (no external file needed)
+  try {
+    const sz = 180;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = sz;
+    const cx = cv.getContext('2d');
+    const r = sz * 0.22;
+    cx.fillStyle = '#EC407A';
+    cx.beginPath();
+    cx.moveTo(r,0); cx.lineTo(sz-r,0); cx.quadraticCurveTo(sz,0,sz,r);
+    cx.lineTo(sz,sz-r); cx.quadraticCurveTo(sz,sz,sz-r,sz);
+    cx.lineTo(r,sz); cx.quadraticCurveTo(0,sz,0,sz-r);
+    cx.lineTo(0,r); cx.quadraticCurveTo(0,0,r,0); cx.closePath(); cx.fill();
+    cx.fillStyle = '#fff';
+    cx.font = 'bold ' + Math.round(sz*0.38) + 'px DM Sans,sans-serif';
+    cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText('SQ', sz/2, sz/2);
+    document.getElementById('pwaIcon').href = cv.toDataURL('image/png');
+  } catch(e) {}
+  // register service worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
+    });
+  }
+})();
+
+function markDirty() { /* backup phương án sau */ }
+
+/* ── EXPORT ── */
+function openExportModal() {
+  const p = dayData().key.split('-');
+  document.getElementById('exportModalTitle').textContent = 'Xuất / In — Tháng ' + parseInt(p[1]) + '/' + p[0];
+  document.getElementById('exportModal').classList.add('open');
+}
+
+async function doExportMonth(format) {
+  closeModal('exportModal');
+  const p = dayData().key.split('-');
+  const yr = parseInt(p[0]), mo = parseInt(p[1]);
+  const prefix = p[0] + '-' + p[1];
+  const pat = localStorage.getItem(CB_PAT_KEY);
+  const monthDays = [];
+  setStatus('loading', 'Đang tải tháng ' + mo + '/' + yr + '…');
+  try {
+    if (pat) {
+      const listing = await ghGet(pat, '/data');
+      if (Array.isArray(listing)) {
+        const mFiles = listing.filter(f => f.name.startsWith(prefix) && f.name.endsWith('.json') && !f.name.startsWith('_'));
+        const fetched = await Promise.all(mFiles.map(f =>
+          ghGet(pat, '/data/' + f.name)
+            .then(j => j ? JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,''))))) : null)
+            .catch(() => null)
+        ));
+        fetched.filter(Boolean).forEach(data => {
+          const i = DAYS.findIndex(x => x.key === data.key);
+          if (i >= 0) { Object.assign(DAYS[i], data); }
+          monthDays.push(data);
+        });
+      }
+    }
+  } catch(e) { console.warn('Export load error:', e); }
+  const daysInMonth = new Date(yr, mo, 0).getDate();
+  for (let dd = 1; dd <= daysInMonth; dd++) {
+    const key = prefix + '-' + String(dd).padStart(2,'0');
+    if (!monthDays.find(x => x.key === key)) {
+      monthDays.push(DAYS.find(x => x.key === key) || _makeEmptyDay(key));
+    }
+  }
+  monthDays.sort((a, b) => a.key.localeCompare(b.key));
+  setStatus('ok', _connStatus.msg);
+  if (format === 'csv') { _exportCSV(monthDays, yr, mo); }
+  else { _exportJSON(monthDays, yr, mo); }
+}
+
+function _exportCSV(days, yr, mo) {
+  const hdr = 'Ngày,DOW,Bóp đầu,Bóp cuối,Bóp thực đếm,Két đầu,Két cuối,Két thực đếm,Lầu cuối,Tổng chi,Tổng thu,Số phiếu,Chốt';
+  const rows = days.map(d => {
+    const bc = calcSection(d.bop), kc = calcSection(d.ket);
+    const pp = d.key.split('-');
+    const dow = ['CN','T2','T3','T4','T5','T6','T7'][new Date(+pp[0],+pp[1]-1,+pp[2]).getDay()];
+    return [d.key, dow, d.bop.open, bc.close, d.bop.physicalCount !== null ? d.bop.physicalCount : '',
+      d.ket.open, kc.close, d.ket.physicalCount !== null ? d.ket.physicalCount : '',
+      calcLauEndOfDay(d), bc.chi + kc.chi, bc.thu + kc.thu,
+      d.bop.chiItems.length + d.bop.thuItems.length + d.ket.chiItems.length + d.ket.thuItems.length,
+      d.chotDone ? 'Da chot' : ''].join(',');
+  });
+  _dlFile('so-quy-' + yr + '-' + String(mo).padStart(2,'0') + '.csv', '\uFEFF' + [hdr, ...rows].join('\n'), 'text/csv');
+}
+
+function _exportJSON(days, yr, mo) {
+  const obj = { month: yr + '-' + String(mo).padStart(2,'0'), exported: new Date().toISOString(), days };
+  _dlFile('so-quy-' + yr + '-' + String(mo).padStart(2,'0') + '.json', JSON.stringify(obj, null, 2), 'application/json');
+}
+
+function _dlFile(name, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function _saveMonthlySummary(pat, days, yr, mo) {
+  const mKey = yr + '-' + String(mo).padStart(2,'0');
+  const obj = {
+    month: mKey, generated: new Date().toISOString(),
+    days: days.map(d => {
+      const bc = calcSection(d.bop), kc = calcSection(d.ket);
+      return { key: d.key, label: d.label, chotDone: d.chotDone,
+        bopOpen: d.bop.open, bopClose: bc.close, bopPhysical: d.bop.physicalCount,
+        ketOpen: d.ket.open, ketClose: kc.close, ketPhysical: d.ket.physicalCount,
+        lauEnd: calcLauEndOfDay(d), lauKV: d.lau.kvBalance,
+        chiTotal: bc.chi + kc.chi, thuTotal: bc.thu + kc.thu };
+    }),
+  };
+  const path = '/summary/' + mKey + '.json';
+  const existing = await ghGet(pat, path).catch(() => null);
+  await ghPut(pat, path, JSON.stringify(obj, null, 2), existing && existing.sha, 'summary thang ' + mo + '/' + yr);
+}
+
+/* ── PRINT ── */
+function printDay() { window.print(); }
+
+window.addEventListener('beforeprint', () => {
+  const prevSec = { ...openSections };
+  const prevList = { ...openLists };
+  openSections = { bop: true, ket: true, lau: true };
+  Object.keys(openLists).forEach(k => { openLists[k] = true; });
+  render();
+  window.addEventListener('afterprint', () => {
+    openSections = prevSec;
+    openLists = prevList;
+    render();
+  }, { once: true });
+});
+
+/* ── KV LIVE FETCH (qua Cloudflare proxy) ── */
+
+function _kvProxyFetch(path) {
+  return fetch(KV_PROXY + '?_t=' + encodeURIComponent('https://api-man1.kiotviet.vn' + path), {
+    headers: { Authorization: 'Bearer ' + _kvToken },
+  }).then(r => { if (!r.ok) { throw new Error('KV HTTP ' + r.status); } return r.json(); });
+}
+
+/* ── KV DATE RANGE: build datetime filter cho ngày bất kỳ ── */
+function _kvBuildDateFilter(key) {
+  // key = 'YYYY-MM-DD' → datetime range [00:00, next day 00:00)
+  const parts = key.split('-');
+  const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  const next = new Date(d); next.setDate(d.getDate() + 1);
+  const fmt = dt => `datetime'${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}T00:00:00'`;
+  return `(TransDate ge ${fmt(d)} and TransDate lt ${fmt(next)})`;
+}
+
+function setFetchErr(msg) {
+  const el = document.getElementById('kvFetchErr');
+  if (el) { el.textContent = msg || ''; }
+}
+
+/* ── KV PRIMARY FETCH: xóa items cũ từ KV rồi load lại sạch ── */
+async function fetchKVDayData(d) {
+  if (!_kvToken || d.chotDone) { return; }
+  setFetchErr('');
+  ['bop', 'ket'].forEach(sec => {
+    d[sec].chiItems = d[sec].chiItems.filter(v => !v.kvId);
+    d[sec].thuItems = d[sec].thuItems.filter(v => !v.kvId);
+  });
+  await fetchKVLiveData(d);
+}
+
+async function fetchKVLiveData(d) {
+  if (!_kvToken || d.chotDone) { return; }
+  const dateClause = _kvBuildDateFilter(d.key);
+  const f = encodeURIComponent(`(BranchId eq ${KV_BRANCH} and ${dateClause} and Status eq 0 and Method eq 'Cash')`);
+  const base = `format=json&IncludeTotal=True&$inlinecount=allpages&CalcDebtStatus=[1,0,-1]`;
+
+  const [summary, list] = await Promise.all([
+    _kvProxyFetch(`/api/cashflow/summary?${base}&Version=3&$filter=${f}`),
+    _kvProxyFetch(`/api/cashflow?${base}&Version=7&IncludeEmployee=true&IncludeBranch=true&IncludeUser=true&UsingTotalApi=true&$top=500&$filter=${f}`),
+  ]);
+
+  if (summary.Total4Value != null) { d.lau.kvBalance = summary.Total4Value / 1000; }
+
+  const seen = new Set([
+    ...d.bop.chiItems, ...d.bop.thuItems,
+    ...d.ket.chiItems, ...d.ket.thuItems,
+  ].map(v => v.code));
+
+  for (const item of (list.Data || [])) {
+    if (seen.has(item.Code)) { continue; }
+    seen.add(item.Code);
+
+    const amountK = item.Amount / 1000;
+    const dt = new Date(item.TransDate);
+    const time = String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
+    const v = {
+      code: item.Code, time,
+      desc: item.PaymentType === 'CashFlow'
+        ? (item.Description || item.CashGroup || '')
+        : (item.PartnerName  || item.CashGroup || ''),
+      cat:  item.CashGroup  || '',
+      note: item.Description || '',
+      amount: amountK,
+      isKhopSo: false, kvId: item.Id,
+    };
+
+    const descLow = (item.Description || '').toLowerCase().trim();
+    const isBop = descLow.startsWith('bóp') || descLow.startsWith('bop');
+
+    if (amountK >= 0) {
+      if (isBop) { d.bop.thuItems.push(v); } else { d.ket.thuItems.push(v); }
+    } else {
+      if (isBop) { d.bop.chiItems.push(v); } else { d.ket.chiItems.push(v); }
+    }
+  }
+}
+
+/* ── INIT ── */
+boot();
+</script>
+</body>
+</html>

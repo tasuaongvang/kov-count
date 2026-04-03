@@ -843,9 +843,17 @@ async function boot() {
     setStatus('ok', `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} · ${tokenInfo}`);
     render();
     if (!dayData().chotDone) {
-      fetchKVLiveData(dayData())
-        .then(() => { markDirty(); render(); })
-        .catch(e => console.warn('KV live:', e.message));
+      setStatus('loading', 'Đang lấy KiotViet…');
+      const _bd = dayData();
+      fetchKVLiveData(_bd)
+        .then(() => {
+          const n = _bd.bop.thuItems.length + _bd.bop.chiItems.length
+                  + _bd.ket.thuItems.length + _bd.ket.chiItems.length;
+          const t = new Date();
+          setStatus('ok', `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')} · ${n} giao dịch KV`);
+          markDirty(); render();
+        })
+        .catch(e => { setStatus('err', 'KV lỗi: ' + e.message); console.error('KV live:', e); });
     }
   } catch(e) {
     setStatus('err', 'Lỗi: ' + e.message);
@@ -1324,9 +1332,17 @@ async function doSync() {
     setStatus('ok', `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} · ${tokenInfo}`);
     render();
     if (!dayData().chotDone) {
-      fetchKVLiveData(dayData())
-        .then(() => { markDirty(); render(); })
-        .catch(e => console.warn('KV live:', e.message));
+      setStatus('loading', 'Đang lấy KiotViet…');
+      const _sd = dayData();
+      fetchKVLiveData(_sd)
+        .then(() => {
+          const n = _sd.bop.thuItems.length + _sd.bop.chiItems.length
+                  + _sd.ket.thuItems.length + _sd.ket.chiItems.length;
+          const t = new Date();
+          setStatus('ok', `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')} · ${n} giao dịch KV`);
+          markDirty(); render();
+        })
+        .catch(e => { setStatus('err', 'KV lỗi: ' + e.message); console.error('KV live:', e); });
     }
   } catch(e) {
     setStatus('err', 'Lỗi: ' + e.message);

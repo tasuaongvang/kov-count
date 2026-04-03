@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Sổ Quỹ</title>
+<title>Cân Sổ Tiền Mặt</title>
 <!-- PWA -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1101,23 +1101,26 @@ function renderVoucherList(listId, items, isOut) {
   const lstKey = parts[1]; // 'chi' or 'thu'
   const mkDel = (v) => _isLocked ? null : `deleteVoucher('${secKey}','${lstKey}','${v.code}')`;
 
-  // Thu list: gom tất cả TTHD* thành 1 summary row có sub-accordion
+  // Thu list: gom TTHD* và TTM* thành summary rows có sub-accordion
   if (!isOut) {
-    const tthdItems = items.filter(v => /^TTHD/.test(v.code));
-    const otherItems = items.filter(v => !/^TTHD/.test(v.code));
-    if (tthdItems.length > 0) {
-      const total = tthdItems.reduce((s, v) => s + Math.abs(v.amount), 0);
-      const gid = listId + '_tthd';
-      const subRows = tthdItems.map((v, i) =>
+    const tthdItems  = items.filter(v => /^TTHD/.test(v.code));
+    const ttmItems   = items.filter(v => /^TTM/.test(v.code));
+    const otherItems = items.filter(v => !/^TTHD/.test(v.code) && !/^TTM/.test(v.code));
+
+    const makeGroup = (groupItems, gidSuffix, codeLabel, descLabel) => {
+      if (groupItems.length === 0) { return ''; }
+      const total = groupItems.reduce((s, v) => s + Math.abs(v.amount), 0);
+      const gid = listId + '_' + gidSuffix;
+      const subRows = groupItems.map((v, i) =>
         renderSingleVoucher(gid + '_' + i, v, false, 'border-top:1px solid var(--border);padding-left:12px', mkDel(v))
       ).join('');
-      const groupRow = `
+      return `
         <div class="voucher" id="vw-${gid}">
           <div class="voucher-main" onclick="toggleVoucher('${gid}')">
             <div class="v-left">
-              <div class="v-code">TTHD-total</div>
-              <div class="v-desc">Khách hàng · ${tthdItems.length} bill</div>
-              <div class="v-time">${tthdItems[0].time}${tthdItems.length > 1 ? ' – ' + tthdItems[tthdItems.length-1].time : ''}</div>
+              <div class="v-code">${codeLabel}</div>
+              <div class="v-desc">${descLabel} · ${groupItems.length} mục</div>
+              <div class="v-time">${groupItems[0].time}${groupItems.length > 1 ? ' – ' + groupItems[groupItems.length-1].time : ''}</div>
             </div>
             <div class="v-right">
               <div class="v-amount inn">+${fmt(total)}</div>
@@ -1127,8 +1130,13 @@ function renderVoucherList(listId, items, isOut) {
             ${subRows}
           </div>
         </div>`;
-      const otherRows = otherItems.map((v, i) => renderSingleVoucher(listId + '_o' + i, v, false, null, mkDel(v))).join('');
-      return `<div class="voucher-list">${groupRow}${otherRows}</div>`;
+    };
+
+    if (tthdItems.length > 0 || ttmItems.length > 0) {
+      const tthdGroup  = makeGroup(tthdItems, 'tthd', 'TTHD-total', 'Khách hàng');
+      const ttmGroup   = makeGroup(ttmItems,  'ttm',  'TTM-total',  'Tiền cước NS SPX');
+      const otherRows  = otherItems.map((v, i) => renderSingleVoucher(listId + '_o' + i, v, false, null, mkDel(v))).join('');
+      return `<div class="voucher-list">${tthdGroup}${ttmGroup}${otherRows}</div>`;
     }
   }
 
@@ -1210,7 +1218,10 @@ function renderLau() {
     </div>
     <div class="acc-body ${openSections.lau ? 'open' : ''}" id="body-lau">
       <div class="lau-formula">
-        <div class="lau-term"><div class="lau-term-val">${fmt(lau.open)}</div><div class="lau-term-label">đầu ngày</div></div>
+        <div class="lau-term${!_isLocked ? ' sum-editable' : ''}" id="lauopen-term" style="border-radius:var(--r-sm);padding:4px 6px;margin:-4px -6px;transition:background .15s" ondblclick="${!_isLocked ? 'editLauOpen()' : ''}" ontouchend="${!_isLocked ? 'onLauOpenTap(event)' : ''}">
+          <div class="lau-term-val" id="lauopen-val">${fmt(lau.open)}</div>
+          <div class="lau-term-label">đầu ngày${!_isLocked ? ' <span class="edit-hint">✎</span>' : ''}</div>
+        </div>
         <div class="lau-op">−</div>
         <div class="lau-term"><div class="lau-term-val" style="color:var(--red)">${fmt(bopXuong)}</div><div class="lau-term-label">bóp xuống</div></div>
         <div class="lau-op">−</div>
@@ -2001,6 +2012,33 @@ function saveOpen(sec, raw) {
     else { d.ket.open = v; }
     markDirty();
   }
+  render();
+}
+
+/* ── EDIT LAU OPEN (double-click / double-tap) ── */
+let _lauOpenTapTs = 0;
+function onLauOpenTap(e) {
+  e.preventDefault();
+  const now = Date.now();
+  if (now - _lauOpenTapTs < 350) { _lauOpenTapTs = 0; editLauOpen(); }
+  else { _lauOpenTapTs = now; }
+}
+function editLauOpen() {
+  const d = dayData();
+  const el = document.getElementById('lauopen-val');
+  if (!el) { return; }
+  el.innerHTML = `<input id="lauopeninp" type="number" min="0" step="0.001"
+    style="width:80px;border:none;border-bottom:2px solid var(--amber);background:transparent;font:inherit;color:inherit;outline:none;-moz-appearance:textfield;text-align:center;padding:2px 0"
+    value="${d.lau.open}"
+    onblur="saveLauOpen(this.value)"
+    onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){render()}">`;
+  const inp = document.getElementById('lauopeninp');
+  if (!inp) { return; }
+  inp.focus(); inp.select();
+}
+function saveLauOpen(raw) {
+  const v = parseFloat(raw);
+  if (!isNaN(v) && v >= 0) { dayData().lau.open = v; markDirty(); }
   render();
 }
 

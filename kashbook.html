@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Sổ Quỹ</title>
+<title>Sổ</title>
 <!-- PWA -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -765,7 +765,7 @@ async function fetchAndApplyToken(pat) {
   const json = await ghGet(pat, '/keys.enc');
   if (!json) { throw new Error('Chưa có file keys.enc'); }
   const data = await cbDecryptToken(json.content);
-  _kvToken = data.token;
+  _kvToken = data.token.replace(/^Bearer\s+/i, '');
   // tự động cập nhật PAT từ bundle nếu có
   if (data.pat) { localStorage.setItem(CB_PAT_KEY, data.pat); }
   return data;

@@ -1,0 +1,23 @@
+{
+  "label": "T6 03/04",
+  "key": "2026-04-03",
+  "bop": {
+    "open": 0,
+    "physicalCount": null,
+    "chiItems": [],
+    "thuItems": []
+  },
+  "ket": {
+    "open": 3500,
+    "physicalCount": null,
+    "chiItems": [],
+    "thuItems": []
+  },
+  "lau": {
+    "open": 0,
+    "kvBalance": 0,
+    "physicalCount": null
+  },
+  "chotDone": false,
+  "nextDayBop": null
+}

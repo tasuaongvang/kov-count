@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Cân Sổ Quỹ</title>
+<title>Sổ Quỹ</title>
 <!-- PWA -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -722,9 +722,15 @@ async function cbDecryptToken(b64) {
   const raw = atob(b64.replace(/\n/g, ''));
   const buf = Uint8Array.from(raw, c => c.charCodeAt(0));
   const iv = buf.slice(0, 12), ct = buf.slice(12);
-  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode('ongvang!2018'), 'PBKDF2', false, ['deriveKey']);
-  const key = await crypto.subtle.deriveKey({ name:'PBKDF2', salt:CB_SALT, iterations:100000, hash:'SHA-256' }, km, { name:'AES-GCM', length:256 }, false, ['decrypt']);
-  return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ct)));
+  // thử password mới trước, fallback về cũ nếu fail
+  for (const pass of ['ongvang!2018', 'ongvang2018']) {
+    try {
+      const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+      const key = await crypto.subtle.deriveKey({ name:'PBKDF2', salt:CB_SALT, iterations:100000, hash:'SHA-256' }, km, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+      return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, ct)));
+    } catch(e) { continue; }
+  }
+  throw new Error('Không giải mã được keys.enc — kiểm tra lại password');
 }
 
 function parseJwt(raw) {

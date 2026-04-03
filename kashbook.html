@@ -74,16 +74,16 @@ body{display:flex;flex-direction:column;align-items:center}
 #app{width:100%;max-width:430px;min-height:100dvh;display:flex;flex-direction:column;position:relative}
 
 /* ── TOPBAR ── */
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px 10px;position:sticky;top:0;z-index:100;flex-shrink:0}
-.topbar-row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.topbar-left{display:flex;align-items:center;gap:6px;flex:1}
-.topbar-center{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0}
-.date-nav-row{display:flex;align-items:center;gap:2px}
-.topbar-center-sub{display:flex;align-items:center;gap:5px;justify-content:center}
-.topbar-right{display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end}
-.date-label{font-size:16px;font-weight:600;min-width:120px;text-align:center;letter-spacing:-0.02em;cursor:pointer;padding:4px 6px;border-radius:var(--r-sm);transition:background .15s}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 10px 6px;position:sticky;top:0;z-index:100;flex-shrink:0}
+.topbar-row1{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.topbar-left{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.topbar-center{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0}
+.date-nav-row{display:flex;align-items:center;gap:0}
+.topbar-center-sub{display:flex;align-items:center;gap:4px;justify-content:center}
+.topbar-right{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.date-label{font-size:14px;font-weight:600;min-width:0;text-align:center;letter-spacing:-0.02em;cursor:pointer;padding:3px 4px;border-radius:var(--r-sm);transition:background .15s;white-space:nowrap}
 .date-label:hover{background:var(--surface2)}
-.nav-btn{width:32px;height:32px;border:none;background:none;color:var(--text2);font-size:20px;cursor:pointer;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;transition:background .15s}
+.nav-btn{width:28px;height:28px;border:none;background:none;color:var(--text2);font-size:18px;cursor:pointer;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;transition:background .15s}
 .nav-btn:active{background:var(--surface2)}
 .count-wrap{position:relative;display:flex;align-items:center}
 /* ── COUNT OVERLAY (full-width timeline) ── */
@@ -97,8 +97,9 @@ body{display:flex;flex-direction:column;align-items:center}
 .ct-pill:active{background:var(--green-bg)}
 .ct-pill-tmr{border-color:var(--amber);color:var(--amber);background:var(--amber-bg)}
 .ct-pill-tmr:hover{background:var(--amber-bg);border-color:var(--amber);color:var(--amber)}
-.sync-btn{display:flex;align-items:center;gap:5px;border:1px solid var(--border2);border-radius:20px;padding:5px 11px;font-size:13px;font-family:var(--sans);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .15s;flex-shrink:0}
+.sync-btn{display:flex;align-items:center;gap:4px;border:1px solid var(--border2);border-radius:20px;padding:5px 9px;font-size:12px;font-family:var(--sans);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .15s;flex-shrink:0}
 .sync-btn:active{background:var(--bg2)}
+.icon-only-btn{padding:5px 7px!important}
 .btn-chot-top{background:var(--accent);color:#fff;border-color:transparent}
 .btn-chot-top:active{background:#C2185B}
 .btn-chot-top.done{background:var(--text3);border-color:transparent}
@@ -141,6 +142,10 @@ body{display:flex;flex-direction:column;align-items:center}
   #app{max-width:none;width:100%;min-height:100vh;border:none}
   .topbar{padding:14px 32px 12px}
   .date-label{font-size:17px;min-width:160px}
+  .topbar-left{gap:6px}
+  .topbar-right{gap:6px}
+  .sync-btn{padding:5px 11px;font-size:13px;gap:5px}
+  .nav-btn{width:32px;height:32px;font-size:20px}
   .scroll-body{padding:24px 32px 32px;gap:14px}
   .main-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;contents:unset}
   .summary-row{grid-template-columns:1fr 1fr}
@@ -404,11 +409,11 @@ body{display:flex;flex-direction:column;align-items:center}
       </div>
 
       <div class="topbar-right">
-        <button class="sync-btn" onclick="openExportModal()" title="Xuất / In dữ liệu" style="padding:5px 9px">
+        <button class="sync-btn icon-only-btn" onclick="openExportModal()" title="Xuất / In dữ liệu">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span class="btn-text">Xuất</span>
         </button>
-        <button class="sync-btn" onclick="openSetup()" title="Cài đặt GitHub PAT" style="padding:5px 9px">
+        <button class="sync-btn icon-only-btn" onclick="openSetup()" title="Cài đặt GitHub PAT">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
         <button class="sync-btn btn-chot-top" id="chotBtn" onclick="openChot()">
@@ -687,11 +692,12 @@ function fmtFull(n) {
 function formatDayLabel(key) {
   const parts = key.split('-');
   const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-  const dow = ['Thứ 8','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'][date.getDay()];
+  const dowFull = ['CN','T2','T3','T4','T5','T6','T7'][date.getDay()];
   const dd = parts[2];
   const mm = parts[1];
   const yy = String(parseInt(parts[0])).slice(2);
-  return `${dow} - ${dd}/${mm}/${yy}`;
+  const isMobile = window.innerWidth < 768;
+  return isMobile ? `${dowFull} ${dd}/${mm}` : `${dowFull === 'CN' ? 'Chủ nhật' : 'Thứ '+dowFull.slice(1)} - ${dd}/${mm}/${yy}`;
 }
 
 let lastSyncErr = false;

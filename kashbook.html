@@ -382,7 +382,7 @@ body{display:flex;flex-direction:column;align-items:center}
       <div class="topbar-left">
         <button class="sync-btn" id="syncBtn" onclick="doSync()">
           <span class="sync-icon">&#8635;</span>
-          <span class="btn-text">Đồng bộ</span>
+          <span class="btn-text">Lấy dữ liệu</span>
         </button>
         <button class="sync-btn" id="countMainBtn" onclick="toggleCountOpts()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
@@ -1304,11 +1304,11 @@ async function doSync() {
   const btn = document.getElementById('syncBtn');
   const lbl = btn ? btn.querySelector('.btn-text') : null;
   if (btn) { btn.classList.add('spinning'); }
-  if (lbl) { lbl.textContent = 'Đang kéo...'; }
+  if (lbl) { lbl.textContent = 'Đang lấy...'; }
   const pat = localStorage.getItem(CB_PAT_KEY);
   if (!pat) {
     if (btn) { btn.classList.remove('spinning'); }
-    if (lbl) { lbl.textContent = 'Đồng bộ'; }
+    if (lbl) { lbl.textContent = 'Lấy dữ liệu'; }
     openSetup(); return;
   }
   try {
@@ -1332,7 +1332,7 @@ async function doSync() {
     setStatus('err', 'Lỗi: ' + e.message);
   } finally {
     if (btn) { btn.classList.remove('spinning'); }
-    if (lbl) { lbl.textContent = 'Đồng bộ'; }
+    if (lbl) { lbl.textContent = 'Lấy dữ liệu'; }
   }
 }
 
@@ -2239,15 +2239,6 @@ window.addEventListener('beforeprint', () => {
 });
 
 /* ── KV LIVE FETCH (qua Cloudflare proxy) ── */
-function _kvDateFilter(key) {
-  const todayKey = _makeDayKey(new Date());
-  const yest = new Date(); yest.setDate(yest.getDate() - 1);
-  const yestKey = _makeDayKey(yest);
-  if (key === todayKey) { return 'today'; }
-  if (key === yestKey)  { return 'yesterday'; }
-  return key.replace(/-/g, '/'); // fallback: '2026/04/01'
-}
-
 function _kvProxyFetch(path) {
   return fetch(KV_PROXY + '?_t=' + encodeURIComponent('https://api-man1.kiotviet.vn' + path), {
     headers: { Authorization: 'Bearer ' + _kvToken },
@@ -2256,12 +2247,19 @@ function _kvProxyFetch(path) {
 
 async function fetchKVLiveData(d) {
   if (!_kvToken || d.chotDone) { return; }
-  const dateStr = _kvDateFilter(d.key);
-  const f = encodeURIComponent(`(BranchId eq ${KV_BRANCH} and TransDate eq '${dateStr}' and Status eq 0 and Method eq 'Cash')`);
+
+  // build next day key for datetime range
+  const p = d.key.split('-');
+  const nextDate = new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2])+1);
+  const nextKey = _makeDayKey(nextDate);
+  const dateFrom = `${d.key}T00:00:00`;
+  const dateTo   = `${nextKey}T00:00:00`;
+  const dateFilter = `(TransDate ge datetime'${dateFrom}' and TransDate lt datetime'${dateTo}')`;
+  const f = encodeURIComponent(`(BranchId eq ${KV_BRANCH} and ${dateFilter} and Status eq 0 and Method eq 'Cash')`);
   const base = `format=json&IncludeTotal=True&$inlinecount=allpages&CalcDebtStatus=[1,0,-1]`;
 
   const [summary, list] = await Promise.all([
-    _kvProxyFetch(`/api/cashflow/summary?${base}&Version=3&$filter=${f}`),
+    _kvProxyFetch(`/api/cashflow/summary?${base}&Version=2&$filter=${f}`),
     _kvProxyFetch(`/api/cashflow?${base}&Version=7&IncludeEmployee=true&IncludeBranch=true&IncludeUser=true&UsingTotalApi=true&$top=500&$filter=${f}`),
   ]);
 
@@ -2276,7 +2274,7 @@ async function fetchKVLiveData(d) {
     if (seen.has(item.Code)) { continue; }
     seen.add(item.Code);
 
-    const amountK = item.Amount / 1000; // sign từ KV: dương = thu, âm = chi
+    const amountK = item.Amount / 1000;
     const dt = new Date(item.TransDate);
     const time = String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
     const v = {
@@ -2290,7 +2288,6 @@ async function fetchKVLiveData(d) {
       isKhopSo: false, kvId: item.Id,
     };
 
-    // section: "bóp" nếu description bắt đầu bằng bóp, còn lại mặc định két
     const descLow = (item.Description || '').toLowerCase().trim();
     const isBop = descLow.startsWith('bóp') || descLow.startsWith('bop');
 

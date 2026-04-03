@@ -743,6 +743,7 @@ function parseJwt(raw) {
 async function ghGet(pat, path) {
   const res = await fetch(CB_REPO + path, { headers: { Authorization: 'Bearer ' + pat, Accept: 'application/vnd.github+json' } });
   if (res.status === 404) { return null; }
+  if (res.status === 401) { _handleBadPat(); throw new Error('GitHub PAT không hợp lệ hoặc hết hạn'); }
   if (!res.ok) { throw new Error('GitHub ' + res.status); }
   return res.json();
 }
@@ -755,8 +756,15 @@ async function ghPut(pat, path, text, sha, message) {
     headers: { Authorization: 'Bearer ' + pat, 'Content-Type': 'application/json', Accept: 'application/vnd.github+json' },
     body: JSON.stringify(body),
   });
+  if (res.status === 401) { _handleBadPat(); throw new Error('GitHub PAT không hợp lệ hoặc hết hạn'); }
   if (!res.ok) { throw new Error('GitHub ' + res.status); }
   return res.json();
+}
+
+function _handleBadPat() {
+  localStorage.removeItem(CB_PAT_KEY);
+  setStatus('err', 'PAT hết hạn — đang mở cài đặt…');
+  setTimeout(openSetup, 600);
 }
 
 async function fetchAndApplyToken(pat) {
@@ -825,8 +833,9 @@ async function boot() {
     if (idx >= 0) { dayIdx = idx; }
   }
   render();
+  if (!localStorage.getItem(CB_PAT_KEY)) { localStorage.setItem(CB_PAT_KEY, CB_PAT_DEFAULT); }
   const pat = localStorage.getItem(CB_PAT_KEY);
-  if (!pat) { setStatus('idle', 'Chưa kết nối — nhấn ⚙ để cài đặt'); openSetup(); return; }
+  if (!pat) { setStatus('idle', 'Chưa kết nối — nhấn ⚙ để cài đặt'); return; }
   setStatus('loading', 'Đang kết nối GitHub…');
   try {
     const tokenData = await fetchAndApplyToken(pat);

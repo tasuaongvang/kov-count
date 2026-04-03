@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Cân Sổ Tiền Mặt</title>
+<title>Sổ Quỹ</title>
 <!-- PWA -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -12,8 +12,6 @@
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#2A2230" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="./manifest.json">
-<link rel="icon" href="./icon.png" type="image/png">
-<link rel="apple-touch-icon" href="./icon.png">
 <link rel="apple-touch-icon" id="pwaIcon">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -74,16 +72,16 @@ body{display:flex;flex-direction:column;align-items:center}
 #app{width:100%;max-width:430px;min-height:100dvh;display:flex;flex-direction:column;position:relative}
 
 /* ── TOPBAR ── */
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 10px 6px;position:sticky;top:0;z-index:100;flex-shrink:0}
-.topbar-row1{display:flex;align-items:center;justify-content:space-between;gap:4px}
-.topbar-left{display:flex;align-items:center;gap:4px;flex-shrink:0}
-.topbar-center{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0}
-.date-nav-row{display:flex;align-items:center;gap:0}
-.topbar-center-sub{display:flex;align-items:center;gap:4px;justify-content:center}
-.topbar-right{display:flex;align-items:center;gap:4px;flex-shrink:0}
-.date-label{font-size:14px;font-weight:600;min-width:0;text-align:center;letter-spacing:-0.02em;cursor:pointer;padding:3px 4px;border-radius:var(--r-sm);transition:background .15s;white-space:nowrap}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px 10px;position:sticky;top:0;z-index:100;flex-shrink:0}
+.topbar-row1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.topbar-left{display:flex;align-items:center;gap:6px;flex:1}
+.topbar-center{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0}
+.date-nav-row{display:flex;align-items:center;gap:2px}
+.topbar-center-sub{display:flex;align-items:center;gap:5px;justify-content:center}
+.topbar-right{display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end}
+.date-label{font-size:16px;font-weight:600;min-width:120px;text-align:center;letter-spacing:-0.02em;cursor:pointer;padding:4px 6px;border-radius:var(--r-sm);transition:background .15s}
 .date-label:hover{background:var(--surface2)}
-.nav-btn{width:28px;height:28px;border:none;background:none;color:var(--text2);font-size:18px;cursor:pointer;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;transition:background .15s}
+.nav-btn{width:32px;height:32px;border:none;background:none;color:var(--text2);font-size:20px;cursor:pointer;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;transition:background .15s}
 .nav-btn:active{background:var(--surface2)}
 .count-wrap{position:relative;display:flex;align-items:center}
 /* ── COUNT OVERLAY (full-width timeline) ── */
@@ -97,9 +95,8 @@ body{display:flex;flex-direction:column;align-items:center}
 .ct-pill:active{background:var(--green-bg)}
 .ct-pill-tmr{border-color:var(--amber);color:var(--amber);background:var(--amber-bg)}
 .ct-pill-tmr:hover{background:var(--amber-bg);border-color:var(--amber);color:var(--amber)}
-.sync-btn{display:flex;align-items:center;gap:4px;border:1px solid var(--border2);border-radius:20px;padding:5px 9px;font-size:12px;font-family:var(--sans);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .15s;flex-shrink:0}
+.sync-btn{display:flex;align-items:center;gap:5px;border:1px solid var(--border2);border-radius:20px;padding:5px 11px;font-size:13px;font-family:var(--sans);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .15s;flex-shrink:0}
 .sync-btn:active{background:var(--bg2)}
-.icon-only-btn{padding:5px 7px!important}
 .btn-chot-top{background:var(--accent);color:#fff;border-color:transparent}
 .btn-chot-top:active{background:#C2185B}
 .btn-chot-top.done{background:var(--text3);border-color:transparent}
@@ -142,10 +139,6 @@ body{display:flex;flex-direction:column;align-items:center}
   #app{max-width:none;width:100%;min-height:100vh;border:none}
   .topbar{padding:14px 32px 12px}
   .date-label{font-size:17px;min-width:160px}
-  .topbar-left{gap:6px}
-  .topbar-right{gap:6px}
-  .sync-btn{padding:5px 11px;font-size:13px;gap:5px}
-  .nav-btn{width:32px;height:32px;font-size:20px}
   .scroll-body{padding:24px 32px 32px;gap:14px}
   .main-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;contents:unset}
   .summary-row{grid-template-columns:1fr 1fr}
@@ -387,7 +380,7 @@ body{display:flex;flex-direction:column;align-items:center}
       <div class="topbar-left">
         <button class="sync-btn" id="syncBtn" onclick="doSync()">
           <span class="sync-icon">&#8635;</span>
-          <span class="btn-text">Lấy dữ liệu</span>
+          <span class="btn-text">Đồng bộ</span>
         </button>
         <button class="sync-btn" id="countMainBtn" onclick="toggleCountOpts()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><path d="M12 6v6l4 2"/></svg>
@@ -409,11 +402,11 @@ body{display:flex;flex-direction:column;align-items:center}
       </div>
 
       <div class="topbar-right">
-        <button class="sync-btn icon-only-btn" onclick="openExportModal()" title="Xuất / In dữ liệu">
+        <button class="sync-btn" onclick="openExportModal()" title="Xuất / In dữ liệu" style="padding:5px 9px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span class="btn-text">Xuất</span>
         </button>
-        <button class="sync-btn icon-only-btn" onclick="openSetup()" title="Cài đặt GitHub PAT">
+        <button class="sync-btn" onclick="openSetup()" title="Cài đặt GitHub PAT" style="padding:5px 9px">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
         <button class="sync-btn btn-chot-top" id="chotBtn" onclick="openChot()">
@@ -692,12 +685,11 @@ function fmtFull(n) {
 function formatDayLabel(key) {
   const parts = key.split('-');
   const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-  const dowFull = ['CN','T2','T3','T4','T5','T6','T7'][date.getDay()];
+  const dow = ['Thứ 8','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'][date.getDay()];
   const dd = parts[2];
   const mm = parts[1];
   const yy = String(parseInt(parts[0])).slice(2);
-  const isMobile = window.innerWidth < 768;
-  return isMobile ? `${dowFull} ${dd}/${mm}` : `${dowFull === 'CN' ? 'Chủ nhật' : 'Thứ '+dowFull.slice(1)} - ${dd}/${mm}/${yy}`;
+  return `${dow} - ${dd}/${mm}/${yy}`;
 }
 
 let lastSyncErr = false;
@@ -710,6 +702,7 @@ const IC_SAFE     = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"
 /* ── GITHUB + CRYPTO ── */
 const CB_SALT    = new Uint8Array([111,110,103,118,97,110,103,50,48,49,56,13,7,23,41,3]);
 const CB_PAT_KEY = 'hgn_gh_pat'; // shared với Hacker Notes
+const CB_PAT_DEFAULT = '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';
 const CB_REPO    = 'https://api.github.com/repos/tasuaongvang/kov/contents/cashbook';
 const KV_PROXY   = 'https://kv-proxy.tasua-ongvang.workers.dev';
 const KV_BRANCH  = 76620;
@@ -791,7 +784,7 @@ async function saveDayToGH(pat, d) {
 }
 
 function openSetup() {
-  document.getElementById('setupPatInput').value = localStorage.getItem(CB_PAT_KEY) || '';
+  document.getElementById('setupPatInput').value = localStorage.getItem(CB_PAT_KEY) || CB_PAT_DEFAULT;
   document.getElementById('setupStatus').textContent = '';
   const btn = document.getElementById('setupSaveBtn');
   if (btn) { btn.disabled = false; }
@@ -849,17 +842,9 @@ async function boot() {
     setStatus('ok', `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} · ${tokenInfo}`);
     render();
     if (!dayData().chotDone) {
-      setStatus('loading', 'Đang lấy KiotViet…');
-      const _bd = dayData();
-      fetchKVLiveData(_bd)
-        .then(() => {
-          const n = _bd.bop.thuItems.length + _bd.bop.chiItems.length
-                  + _bd.ket.thuItems.length + _bd.ket.chiItems.length;
-          const t = new Date();
-          setStatus('ok', `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')} · ${n} giao dịch KV`);
-          markDirty(); render();
-        })
-        .catch(e => { setStatus('err', 'KV lỗi: ' + e.message); console.error('KV live:', e); });
+      fetchKVLiveData(dayData())
+        .then(() => { markDirty(); render(); })
+        .catch(e => console.warn('KV live:', e.message));
     }
   } catch(e) {
     setStatus('err', 'Lỗi: ' + e.message);
@@ -1117,26 +1102,23 @@ function renderVoucherList(listId, items, isOut) {
   const lstKey = parts[1]; // 'chi' or 'thu'
   const mkDel = (v) => _isLocked ? null : `deleteVoucher('${secKey}','${lstKey}','${v.code}')`;
 
-  // Thu list: gom TTHD* và TTM* thành summary rows có sub-accordion
+  // Thu list: gom tất cả TTHD* thành 1 summary row có sub-accordion
   if (!isOut) {
-    const tthdItems  = items.filter(v => /^TTHD/.test(v.code));
-    const ttmItems   = items.filter(v => /^TTM/.test(v.code));
-    const otherItems = items.filter(v => !/^TTHD/.test(v.code) && !/^TTM/.test(v.code));
-
-    const makeGroup = (groupItems, gidSuffix, codeLabel, descLabel) => {
-      if (groupItems.length === 0) { return ''; }
-      const total = groupItems.reduce((s, v) => s + Math.abs(v.amount), 0);
-      const gid = listId + '_' + gidSuffix;
-      const subRows = groupItems.map((v, i) =>
+    const tthdItems = items.filter(v => /^TTHD/.test(v.code));
+    const otherItems = items.filter(v => !/^TTHD/.test(v.code));
+    if (tthdItems.length > 0) {
+      const total = tthdItems.reduce((s, v) => s + Math.abs(v.amount), 0);
+      const gid = listId + '_tthd';
+      const subRows = tthdItems.map((v, i) =>
         renderSingleVoucher(gid + '_' + i, v, false, 'border-top:1px solid var(--border);padding-left:12px', mkDel(v))
       ).join('');
-      return `
+      const groupRow = `
         <div class="voucher" id="vw-${gid}">
           <div class="voucher-main" onclick="toggleVoucher('${gid}')">
             <div class="v-left">
-              <div class="v-code">${codeLabel}</div>
-              <div class="v-desc">${descLabel} · ${groupItems.length} mục</div>
-              <div class="v-time">${groupItems[0].time}${groupItems.length > 1 ? ' – ' + groupItems[groupItems.length-1].time : ''}</div>
+              <div class="v-code">TTHD-total</div>
+              <div class="v-desc">Khách hàng · ${tthdItems.length} bill</div>
+              <div class="v-time">${tthdItems[0].time}${tthdItems.length > 1 ? ' – ' + tthdItems[tthdItems.length-1].time : ''}</div>
             </div>
             <div class="v-right">
               <div class="v-amount inn">+${fmt(total)}</div>
@@ -1146,13 +1128,8 @@ function renderVoucherList(listId, items, isOut) {
             ${subRows}
           </div>
         </div>`;
-    };
-
-    if (tthdItems.length > 0 || ttmItems.length > 0) {
-      const tthdGroup  = makeGroup(tthdItems, 'tthd', 'TTHD-total', 'Khách hàng');
-      const ttmGroup   = makeGroup(ttmItems,  'ttm',  'TTM-total',  'Tiền cước NS SPX');
-      const otherRows  = otherItems.map((v, i) => renderSingleVoucher(listId + '_o' + i, v, false, null, mkDel(v))).join('');
-      return `<div class="voucher-list">${tthdGroup}${ttmGroup}${otherRows}</div>`;
+      const otherRows = otherItems.map((v, i) => renderSingleVoucher(listId + '_o' + i, v, false, null, mkDel(v))).join('');
+      return `<div class="voucher-list">${groupRow}${otherRows}</div>`;
     }
   }
 
@@ -1234,10 +1211,7 @@ function renderLau() {
     </div>
     <div class="acc-body ${openSections.lau ? 'open' : ''}" id="body-lau">
       <div class="lau-formula">
-        <div class="lau-term${!_isLocked ? ' sum-editable' : ''}" id="lauopen-term" style="border-radius:var(--r-sm);padding:4px 6px;margin:-4px -6px;transition:background .15s" ondblclick="${!_isLocked ? 'editLauOpen()' : ''}" ontouchend="${!_isLocked ? 'onLauOpenTap(event)' : ''}">
-          <div class="lau-term-val" id="lauopen-val">${fmt(lau.open)}</div>
-          <div class="lau-term-label">đầu ngày${!_isLocked ? ' <span class="edit-hint">✎</span>' : ''}</div>
-        </div>
+        <div class="lau-term"><div class="lau-term-val">${fmt(lau.open)}</div><div class="lau-term-label">đầu ngày</div></div>
         <div class="lau-op">−</div>
         <div class="lau-term"><div class="lau-term-val" style="color:var(--red)">${fmt(bopXuong)}</div><div class="lau-term-label">bóp xuống</div></div>
         <div class="lau-op">−</div>
@@ -1318,11 +1292,11 @@ async function doSync() {
   const btn = document.getElementById('syncBtn');
   const lbl = btn ? btn.querySelector('.btn-text') : null;
   if (btn) { btn.classList.add('spinning'); }
-  if (lbl) { lbl.textContent = 'Đang lấy...'; }
+  if (lbl) { lbl.textContent = 'Đang kéo...'; }
   const pat = localStorage.getItem(CB_PAT_KEY);
   if (!pat) {
     if (btn) { btn.classList.remove('spinning'); }
-    if (lbl) { lbl.textContent = 'Lấy dữ liệu'; }
+    if (lbl) { lbl.textContent = 'Đồng bộ'; }
     openSetup(); return;
   }
   try {
@@ -1338,23 +1312,15 @@ async function doSync() {
     setStatus('ok', `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')} · ${tokenInfo}`);
     render();
     if (!dayData().chotDone) {
-      setStatus('loading', 'Đang lấy KiotViet…');
-      const _sd = dayData();
-      fetchKVLiveData(_sd)
-        .then(() => {
-          const n = _sd.bop.thuItems.length + _sd.bop.chiItems.length
-                  + _sd.ket.thuItems.length + _sd.ket.chiItems.length;
-          const t = new Date();
-          setStatus('ok', `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')} · ${n} giao dịch KV`);
-          markDirty(); render();
-        })
-        .catch(e => { setStatus('err', 'KV lỗi: ' + e.message); console.error('KV live:', e); });
+      fetchKVLiveData(dayData())
+        .then(() => { markDirty(); render(); })
+        .catch(e => console.warn('KV live:', e.message));
     }
   } catch(e) {
     setStatus('err', 'Lỗi: ' + e.message);
   } finally {
     if (btn) { btn.classList.remove('spinning'); }
-    if (lbl) { lbl.textContent = 'Lấy dữ liệu'; }
+    if (lbl) { lbl.textContent = 'Đồng bộ'; }
   }
 }
 
@@ -2039,33 +2005,6 @@ function saveOpen(sec, raw) {
   render();
 }
 
-/* ── EDIT LAU OPEN (double-click / double-tap) ── */
-let _lauOpenTapTs = 0;
-function onLauOpenTap(e) {
-  e.preventDefault();
-  const now = Date.now();
-  if (now - _lauOpenTapTs < 350) { _lauOpenTapTs = 0; editLauOpen(); }
-  else { _lauOpenTapTs = now; }
-}
-function editLauOpen() {
-  const d = dayData();
-  const el = document.getElementById('lauopen-val');
-  if (!el) { return; }
-  el.innerHTML = `<input id="lauopeninp" type="number" min="0" step="0.001"
-    style="width:80px;border:none;border-bottom:2px solid var(--amber);background:transparent;font:inherit;color:inherit;outline:none;-moz-appearance:textfield;text-align:center;padding:2px 0"
-    value="${d.lau.open}"
-    onblur="saveLauOpen(this.value)"
-    onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){render()}">`;
-  const inp = document.getElementById('lauopeninp');
-  if (!inp) { return; }
-  inp.focus(); inp.select();
-}
-function saveLauOpen(raw) {
-  const v = parseFloat(raw);
-  if (!isNaN(v) && v >= 0) { dayData().lau.open = v; markDirty(); }
-  render();
-}
-
 /* ── CLOSE ON BACKDROP ── */
 document.querySelectorAll('.modal-wrap').forEach(wrap => {
   wrap.addEventListener('click', e => {
@@ -2095,7 +2034,7 @@ document.querySelectorAll('.modal-wrap').forEach(wrap => {
     document.getElementById('pwaIcon').href = cv.toDataURL('image/png');
   } catch(e) {}
   // register service worker
-  if ('serviceWorker' in navigator && !location.hostname.includes('claudeusercontent.com')) {
+  if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
     });
@@ -2261,27 +2200,34 @@ window.addEventListener('beforeprint', () => {
 });
 
 /* ── KV LIVE FETCH (qua Cloudflare proxy) ── */
+function _kvDateRange(key) {
+  const p = key.split('-');
+  const d = new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+  const next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = dt => `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T00:00:00`;
+  return { start: fmt(d), end: fmt(next) };
+}
+
 function _kvProxyFetch(path) {
   return fetch(KV_PROXY + '?_t=' + encodeURIComponent('https://api-man1.kiotviet.vn' + path), {
     headers: { Authorization: 'Bearer ' + _kvToken },
-  }).then(r => { if (!r.ok) { throw new Error('KV HTTP ' + r.status); } return r.json(); });
+  }).then(r => {
+    if (r.status === 403) { throw new Error('KV token hết hạn — cần refresh token'); }
+    if (!r.ok) { throw new Error('KV HTTP ' + r.status); }
+    return r.json();
+  });
 }
 
 async function fetchKVLiveData(d) {
   if (!_kvToken || d.chotDone) { return; }
-
-  // build next day key for datetime range
-  const p = d.key.split('-');
-  const nextDate = new Date(parseInt(p[0]), parseInt(p[1])-1, parseInt(p[2])+1);
-  const nextKey = _makeDayKey(nextDate);
-  const dateFrom = `${d.key}T00:00:00`;
-  const dateTo   = `${nextKey}T00:00:00`;
-  const dateFilter = `(TransDate ge datetime'${dateFrom}' and TransDate lt datetime'${dateTo}')`;
-  const f = encodeURIComponent(`(BranchId eq ${KV_BRANCH} and ${dateFilter} and Status eq 0 and Method eq 'Cash')`);
+  const { start, end } = _kvDateRange(d.key);
+  const filterStr = `(BranchId eq ${KV_BRANCH} and (TransDate ge datetime'${start}' and TransDate lt datetime'${end}') and Status eq 0 and Method eq 'Cash')`;
+  const f = encodeURIComponent(filterStr);
   const base = `format=json&IncludeTotal=True&$inlinecount=allpages&CalcDebtStatus=[1,0,-1]`;
 
   const [summary, list] = await Promise.all([
-    _kvProxyFetch(`/api/cashflow/summary?${base}&Version=2&$filter=${f}`),
+    _kvProxyFetch(`/api/cashflow/summary?${base}&Version=3&$filter=${f}`),
     _kvProxyFetch(`/api/cashflow?${base}&Version=7&IncludeEmployee=true&IncludeBranch=true&IncludeUser=true&UsingTotalApi=true&$top=500&$filter=${f}`),
   ]);
 
@@ -2296,7 +2242,7 @@ async function fetchKVLiveData(d) {
     if (seen.has(item.Code)) { continue; }
     seen.add(item.Code);
 
-    const amountK = item.Amount / 1000;
+    const amountK = item.Amount / 1000; // sign từ KV: dương = thu, âm = chi
     const dt = new Date(item.TransDate);
     const time = String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0');
     const v = {
@@ -2310,6 +2256,7 @@ async function fetchKVLiveData(d) {
       isKhopSo: false, kvId: item.Id,
     };
 
+    // section: "bóp" nếu description bắt đầu bằng bóp, còn lại mặc định két
     const descLow = (item.Description || '').toLowerCase().trim();
     const isBop = descLow.startsWith('bóp') || descLow.startsWith('bop');
 

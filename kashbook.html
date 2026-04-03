@@ -12,6 +12,8 @@
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#2A2230" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.png" type="image/png">
+<link rel="apple-touch-icon" href="./icon.png">
 <link rel="apple-touch-icon" id="pwaIcon">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2071,7 +2073,7 @@ document.querySelectorAll('.modal-wrap').forEach(wrap => {
     document.getElementById('pwaIcon').href = cv.toDataURL('image/png');
   } catch(e) {}
   // register service worker
-  if ('serviceWorker' in navigator) {
+  if ('serviceWorker' in navigator && !location.hostname.includes('claudeusercontent.com')) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
     });

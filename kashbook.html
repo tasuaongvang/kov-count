@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title> Quỹ</title>
+<title>Sổ Quỹ</title>
 <!-- PWA -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -765,9 +765,10 @@ async function fetchAndApplyToken(pat) {
   const json = await ghGet(pat, '/keys.enc');
   if (!json) { throw new Error('Chưa có file keys.enc'); }
   const data = await cbDecryptToken(json.content);
-  _kvToken = data.token.replace(/^Bearer\s+/i, '');
-  // kiểm tra token hết hạn
-  const jwt = parseJwt(data.token);
+  // token = XHR cashflow token, angularToken = JWT dài (cho display)
+  _kvToken = (data.token || data.angularToken || '').replace(/^Bearer\s+/i, '');
+  // kiểm tra hết hạn qua angularToken (JWT) hoặc token chính nếu là JWT
+  const jwt = parseJwt(data.angularToken || data.token);
   if (jwt && jwt.exp && jwt.exp * 1000 < Date.now()) {
     throw new Error('Token KV đã hết hạn — đăng nhập lại KiotvViet rồi Backup từ HackerNote');
   }
@@ -1514,7 +1515,7 @@ async function kvSyncVoucher(voucher, isReceipt, amountK) {
   try {
     const res = await fetch(KV_CF_URL, {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + _kvToken, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': (/^Bearer\s+/i.test(_kvToken) ? _kvToken : 'Bearer ' + _kvToken), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
     if (!res.ok) { throw new Error('HTTP ' + res.status); }
@@ -1541,7 +1542,7 @@ function deleteVoucher(sectionKey, listKey, vCode) {
   if (voucher.kvId && _kvToken) {
     fetch(KV_CF_URL + '/' + voucher.kvId, {
       method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + _kvToken },
+      headers: { 'Authorization': (/^Bearer\s+/i.test(_kvToken) ? _kvToken : 'Bearer ' + _kvToken) },
     }).catch(e => console.warn('KV delete failed:', e));
   }
 }
@@ -2116,8 +2117,9 @@ window.addEventListener('beforeprint', () => {
 /* ── KV LIVE FETCH (qua Cloudflare proxy) ── */
 
 function _kvProxyFetch(path) {
+  const authHeader = /^Bearer\s+/i.test(_kvToken) ? _kvToken : 'Bearer ' + _kvToken;
   return fetch(KV_PROXY + '?_t=' + encodeURIComponent('https://api-man1.kiotviet.vn' + path), {
-    headers: { Authorization: 'Bearer ' + _kvToken },
+    headers: { Authorization: authHeader },
   }).then(r => {
     if (r.status === 401 || r.status === 403) {
       throw new Error('Token KV hết hạn (HTTP ' + r.status + ') — cần đăng nhập lại KiotvViet để HackerNote capture token mới');

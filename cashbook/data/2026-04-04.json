@@ -905,6 +905,15 @@
         "note": "Payment",
         "amount": 382,
         "kvId": 101064645
+      },
+      {
+        "code": "TTHD096493",
+        "time": "20:36",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 121,
+        "kvId": 101065969
       }
     ]
   },

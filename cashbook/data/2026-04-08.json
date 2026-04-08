@@ -1,0 +1,930 @@
+{
+  "label": "T4 08/04",
+  "key": "2026-04-08",
+  "bop": {
+    "open": 0,
+    "physicalCount": null,
+    "chiItems": [
+      {
+        "code": "PC001931",
+        "time": "11:43",
+        "desc": "PT - Phạm Thanh (Huggies, Nestle) · bóp",
+        "cat": "Tiền trả NCC",
+        "note": "PurchasePayment",
+        "amount": -7559,
+        "kvId": 5258249
+      },
+      {
+        "code": "PC001932",
+        "time": "11:53",
+        "desc": "TGF - Tâm Gia Phúc · bóp",
+        "cat": "Tiền trả NCC",
+        "note": "PurchasePayment",
+        "amount": -10436,
+        "kvId": 5258313
+      },
+      {
+        "code": "PCPN007012",
+        "time": "15:21",
+        "desc": "THP - Tuấn Hà Phát (monte, meiji) · bóp",
+        "cat": "Tiền trả NCC",
+        "note": "PurchasePayment",
+        "amount": -1680,
+        "kvId": 5259335
+      },
+      {
+        "code": "PCPN007013",
+        "time": "16:06",
+        "desc": "Thành Đạt - a Vũ · bóp",
+        "cat": "Tiền trả NCC",
+        "note": "PurchasePayment",
+        "amount": -19452,
+        "kvId": 5259584
+      },
+      {
+        "code": "PCPN007015",
+        "time": "16:13",
+        "desc": "CM - Đào Thị Minh · bóp",
+        "cat": "Tiền trả NCC",
+        "note": "PurchasePayment",
+        "amount": -27192,
+        "kvId": 5259621
+      },
+      {
+        "code": "PCPN007017",
+        "time": "16:41",
+        "desc": "SGM (USMilk Global) · bóp",
+        "cat": "Tiền trả NCC",
+        "note": "PurchasePayment",
+        "amount": -2500,
+        "kvId": 5259774
+      }
+    ],
+    "thuItems": []
+  },
+  "ket": {
+    "open": 3500,
+    "physicalCount": null,
+    "chiItems": [
+      {
+        "code": "PCPN007007",
+        "time": "11:45",
+        "desc": "NVS - Nam Việt Sin (ovaltine, sanest) · két",
+        "cat": "Tiền trả NCC",
+        "note": "PurchasePayment",
+        "amount": -2197,
+        "kvId": 5258266
+      },
+      {
+        "code": "PCPN007009",
+        "time": "11:59",
+        "desc": "c Uyên (bò cười bel) · két",
+        "cat": "Tiền trả NCC",
+        "note": "PurchasePayment",
+        "amount": -1755,
+        "kvId": 5258331
+      },
+      {
+        "code": "PCPN007011",
+        "time": "15:13",
+        "desc": "Nguyên Thương XO · két",
+        "cat": "Tiền trả NCC",
+        "note": "PurchasePayment",
+        "amount": -3120,
+        "kvId": 5259287
+      },
+      {
+        "code": "PC001933",
+        "time": "16:41",
+        "desc": "SGM (USMilk Global) · két",
+        "cat": "Tiền trả NCC",
+        "note": "PurchasePayment",
+        "amount": -377,
+        "kvId": 5259779
+      }
+    ],
+    "thuItems": [
+      {
+        "code": "TTHD096914",
+        "time": "08:27",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 208,
+        "kvId": 101447269
+      },
+      {
+        "code": "TTHD096917",
+        "time": "08:52",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 995,
+        "kvId": 101450123
+      },
+      {
+        "code": "TTHD096918",
+        "time": "08:56",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 105,
+        "kvId": 101450573
+      },
+      {
+        "code": "TTHD096919",
+        "time": "09:13",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 225,
+        "kvId": 101452499
+      },
+      {
+        "code": "TTHD096920",
+        "time": "09:17",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 305,
+        "kvId": 101453038
+      },
+      {
+        "code": "TTHD096921",
+        "time": "09:19",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 79,
+        "kvId": 101453226
+      },
+      {
+        "code": "TTHD096922",
+        "time": "09:20",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 63,
+        "kvId": 101453328
+      },
+      {
+        "code": "TTHD096923",
+        "time": "09:23",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 428,
+        "kvId": 101453648
+      },
+      {
+        "code": "TTHD096924",
+        "time": "09:35",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 81,
+        "kvId": 101455174
+      },
+      {
+        "code": "TTHDD_TH000962",
+        "time": "10:00",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 39,
+        "kvId": 101458230
+      },
+      {
+        "code": "TTHD096926",
+        "time": "10:00",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 175,
+        "kvId": 101458202
+      },
+      {
+        "code": "TTHD096927",
+        "time": "10:06",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 54,
+        "kvId": 101458991
+      },
+      {
+        "code": "TTHD096928",
+        "time": "10:10",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 295,
+        "kvId": 101459555
+      },
+      {
+        "code": "TTHD096929",
+        "time": "10:35",
+        "desc": "chị Đào",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 400,
+        "kvId": 101462813
+      },
+      {
+        "code": "TTHD096931",
+        "time": "10:40",
+        "desc": "chị Bích Châm",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 334,
+        "kvId": 101463491
+      },
+      {
+        "code": "TTHD096930",
+        "time": "10:40",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 76,
+        "kvId": 101463486
+      },
+      {
+        "code": "TTHD096932",
+        "time": "10:42",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 33,
+        "kvId": 101463744
+      },
+      {
+        "code": "TTHD096933",
+        "time": "10:48",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 41,
+        "kvId": 101464681
+      },
+      {
+        "code": "TTHD096934",
+        "time": "10:49",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 360,
+        "kvId": 101464745
+      },
+      {
+        "code": "TTHD096935",
+        "time": "11:00",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 358,
+        "kvId": 101466132
+      },
+      {
+        "code": "TTHD096936",
+        "time": "11:01",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 160,
+        "kvId": 101466230
+      },
+      {
+        "code": "TTM004882",
+        "time": "11:09",
+        "desc": "A · két | nhập nhanh POS",
+        "cat": "Tiền cước NS SPX",
+        "note": "CashFlow",
+        "amount": 53,
+        "kvId": 1838542
+      },
+      {
+        "code": "TTHD096937",
+        "time": "11:32",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 324,
+        "kvId": 101470144
+      },
+      {
+        "code": "TTM004883",
+        "time": "12:17",
+        "desc": "A · két | nhập nhanh SPC",
+        "cat": "Tiền cước NS SPX",
+        "note": "CashFlow",
+        "amount": 20,
+        "kvId": 1838747
+      },
+      {
+        "code": "TTHD096938",
+        "time": "15:26",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 519,
+        "kvId": 101491584
+      },
+      {
+        "code": "TTHD096939",
+        "time": "15:43",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 224,
+        "kvId": 101493392
+      },
+      {
+        "code": "TTHD096941",
+        "time": "15:58",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 120,
+        "kvId": 101495362
+      },
+      {
+        "code": "TTHD096944",
+        "time": "16:23",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 10,
+        "kvId": 101499002
+      },
+      {
+        "code": "TTHD096945",
+        "time": "16:27",
+        "desc": "chị Nhung",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 175,
+        "kvId": 101499600
+      },
+      {
+        "code": "TTHD096947",
+        "time": "16:32",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 503,
+        "kvId": 101500595
+      },
+      {
+        "code": "TTHD096948",
+        "time": "16:33",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 548,
+        "kvId": 101500727
+      },
+      {
+        "code": "TTHD096949",
+        "time": "16:36",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 280,
+        "kvId": 101501176
+      },
+      {
+        "code": "TTHD096952",
+        "time": "16:56",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 170,
+        "kvId": 101504820
+      },
+      {
+        "code": "TTHD096954",
+        "time": "16:57",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 795,
+        "kvId": 101505115
+      },
+      {
+        "code": "TTHD096955",
+        "time": "17:09",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 500,
+        "kvId": 101507503
+      },
+      {
+        "code": "TTHD096956",
+        "time": "17:10",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 280,
+        "kvId": 101507753
+      },
+      {
+        "code": "TTHD096958",
+        "time": "17:16",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 54,
+        "kvId": 101508810
+      },
+      {
+        "code": "TTHD096960",
+        "time": "17:24",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 40,
+        "kvId": 101510295
+      },
+      {
+        "code": "TTHD096961",
+        "time": "17:26",
+        "desc": "chị Kiều",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 100,
+        "kvId": 101510770
+      },
+      {
+        "code": "TTHD096962",
+        "time": "17:27",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 200,
+        "kvId": 101510824
+      },
+      {
+        "code": "TTHD096965",
+        "time": "17:32",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 110,
+        "kvId": 101511880
+      },
+      {
+        "code": "TTHD096966",
+        "time": "17:37",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 455,
+        "kvId": 101512814
+      },
+      {
+        "code": "TTHD096968",
+        "time": "17:39",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 175,
+        "kvId": 101513256
+      },
+      {
+        "code": "TTHD096967",
+        "time": "17:39",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 220,
+        "kvId": 101513192
+      },
+      {
+        "code": "TTHD096969",
+        "time": "17:43",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 35,
+        "kvId": 101513979
+      },
+      {
+        "code": "TTHD096972",
+        "time": "17:51",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 711,
+        "kvId": 101515373
+      },
+      {
+        "code": "TTHD096973",
+        "time": "18:00",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 710,
+        "kvId": 101517174
+      },
+      {
+        "code": "TTHD096975",
+        "time": "18:04",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 29,
+        "kvId": 101517936
+      },
+      {
+        "code": "TTHD096974",
+        "time": "18:04",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 10,
+        "kvId": 101517892
+      },
+      {
+        "code": "TTHD096976",
+        "time": "18:09",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 902,
+        "kvId": 101518846
+      },
+      {
+        "code": "TTHD096978",
+        "time": "18:12",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 185,
+        "kvId": 101519265
+      },
+      {
+        "code": "TTM004884",
+        "time": "18:18",
+        "desc": "A · két | nhập nhanh SPC",
+        "cat": "Tiền cước NS SPX",
+        "note": "CashFlow",
+        "amount": 11,
+        "kvId": 1839746
+      },
+      {
+        "code": "TTHD096981",
+        "time": "18:31",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 20,
+        "kvId": 101522486
+      },
+      {
+        "code": "TTHD096983",
+        "time": "18:37",
+        "desc": "chị Ngọc *",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 120,
+        "kvId": 101523563
+      },
+      {
+        "code": "TTHD096986",
+        "time": "18:47",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 100,
+        "kvId": 101525290
+      },
+      {
+        "code": "TTM004885",
+        "time": "18:49",
+        "desc": "A · két | nhập nhanh SPC",
+        "cat": "Tiền cước NS SPX",
+        "note": "CashFlow",
+        "amount": 14,
+        "kvId": 1839795
+      },
+      {
+        "code": "TTHD096987",
+        "time": "18:50",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 1117,
+        "kvId": 101525812
+      },
+      {
+        "code": "TTHD096989",
+        "time": "18:51",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 127,
+        "kvId": 101525990
+      },
+      {
+        "code": "TTHD096988",
+        "time": "18:51",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 56,
+        "kvId": 101525921
+      },
+      {
+        "code": "TTHD096991",
+        "time": "18:56",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 56,
+        "kvId": 101526713
+      },
+      {
+        "code": "TTHD096992",
+        "time": "18:57",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 84,
+        "kvId": 101526945
+      },
+      {
+        "code": "TTM004886",
+        "time": "19:04",
+        "desc": "A · két | nhập nhanh SPC",
+        "cat": "Tiền cước NS SPX",
+        "note": "CashFlow",
+        "amount": 16,
+        "kvId": 1839832
+      },
+      {
+        "code": "TTHD096995",
+        "time": "19:15",
+        "desc": "chị Hậu & anh Công",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 1126,
+        "kvId": 101529829
+      },
+      {
+        "code": "TTHD096996",
+        "time": "19:16",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 334,
+        "kvId": 101529921
+      },
+      {
+        "code": "TTHD096997",
+        "time": "19:18",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 463,
+        "kvId": 101530256
+      },
+      {
+        "code": "TTM004887",
+        "time": "19:21",
+        "desc": "A · két | nhập nhanh POS",
+        "cat": "Tiền cước NS SPX",
+        "note": "CashFlow",
+        "amount": 30,
+        "kvId": 1839852
+      },
+      {
+        "code": "TTM004888",
+        "time": "19:23",
+        "desc": "A · két | nhập nhanh POS",
+        "cat": "Tiền cước NS SPX",
+        "note": "CashFlow",
+        "amount": 32,
+        "kvId": 1839855
+      },
+      {
+        "code": "TTHD096999",
+        "time": "19:28",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 24,
+        "kvId": 101531674
+      },
+      {
+        "code": "TTHD097000",
+        "time": "19:33",
+        "desc": "chị Thu",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 960,
+        "kvId": 101532426
+      },
+      {
+        "code": "TTHD097001",
+        "time": "19:35",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 120,
+        "kvId": 101532663
+      },
+      {
+        "code": "TTHD097003",
+        "time": "19:41",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 38,
+        "kvId": 101533540
+      },
+      {
+        "code": "TTM004889",
+        "time": "19:44",
+        "desc": "A · két | nhập nhanh SPC",
+        "cat": "Tiền cước NS SPX",
+        "note": "CashFlow",
+        "amount": 17,
+        "kvId": 1839870
+      },
+      {
+        "code": "TTHD097004",
+        "time": "19:44",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 420,
+        "kvId": 101533877
+      },
+      {
+        "code": "TTHD097005",
+        "time": "19:49",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 160,
+        "kvId": 101534523
+      },
+      {
+        "code": "TT000730",
+        "time": "19:52",
+        "desc": "chị Vân 71C",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 2903,
+        "kvId": 101535002
+      },
+      {
+        "code": "TTHD097007",
+        "time": "19:54",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 42,
+        "kvId": 101535260
+      },
+      {
+        "code": "TTHD097009",
+        "time": "19:58",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 85,
+        "kvId": 101535743
+      },
+      {
+        "code": "TTM004890",
+        "time": "19:59",
+        "desc": "A · két | nhập nhanh POS",
+        "cat": "Tiền cước NS SPX",
+        "note": "CashFlow",
+        "amount": 15,
+        "kvId": 1839875
+      },
+      {
+        "code": "TTHD097010",
+        "time": "20:06",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 214,
+        "kvId": 101536647
+      },
+      {
+        "code": "TTHD097012",
+        "time": "20:07",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 760,
+        "kvId": 101536790
+      },
+      {
+        "code": "TTHD097014",
+        "time": "20:11",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 250,
+        "kvId": 101537300
+      },
+      {
+        "code": "TTHD097015",
+        "time": "20:14",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 573,
+        "kvId": 101537753
+      },
+      {
+        "code": "TTHD097016",
+        "time": "20:16",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 163,
+        "kvId": 101537960
+      },
+      {
+        "code": "TTHD097017",
+        "time": "20:17",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 321,
+        "kvId": 101538103
+      },
+      {
+        "code": "TTHD097019",
+        "time": "20:18",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 360,
+        "kvId": 101538313
+      },
+      {
+        "code": "TTHD097018",
+        "time": "20:18",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 283,
+        "kvId": 101538257
+      },
+      {
+        "code": "TTM004891",
+        "time": "20:19",
+        "desc": "A · két | nhập nhanh POS",
+        "cat": "Tiền cước NS SPX",
+        "note": "CashFlow",
+        "amount": 17,
+        "kvId": 1839881
+      },
+      {
+        "code": "TTHD097022",
+        "time": "20:20",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 180,
+        "kvId": 101538566
+      },
+      {
+        "code": "TTHD097021",
+        "time": "20:20",
+        "desc": "Khách lẻ",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 784,
+        "kvId": 101538530
+      },
+      {
+        "code": "TT000731",
+        "time": "20:24",
+        "desc": "bé Hằng",
+        "cat": "Tiền khách trả",
+        "note": "Payment",
+        "amount": 1792,
+        "kvId": 101539005
+      }
+    ]
+  },
+  "lau": {
+    "lastCount": {
+      "amount": 0,
+      "date": ""
+    },
+    "kvBalance": 86630,
+    "chiItems": [],
+    "thuItems": []
+  },
+  "chotDone": false,
+  "nextDayBop": null
+}
